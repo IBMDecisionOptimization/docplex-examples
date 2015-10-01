@@ -1,9 +1,9 @@
-# IBM Decision Optimization CPLEX Modeling for Python (DOcplex) Samples - Technology Preview
+# IBM Decision Optimization CPLEX Modeling for Python (DOcplex) Samples - Technical Preview
 
 Welcome to IBM Decision Optimization CPLEX Modeling for Python.
 Licensed under the Apache License, Version 2.0.
 
-These are the IBM Decision Optimization CPLEX for Python samples
+These are the IBM Decision Optimization CPLEX Modeling for Python samples.
 
 
 Solving with CPLEX Optimizers locally requires that IBM ILOG CPLEX Optimization Studio V12.6.2 is installed on your machine.
@@ -72,7 +72,7 @@ This library requires Python  version 2.7.9 (or later), or 3.4 (or later).
       Edit your url and api_key.
 
 
-## Using IBM ILOG CPLEX V12.6.2 on your computer
+## Using IBM ILOG CPLEX Optimization Studio V12.6.2 on your computer
 
 If you have IBM ILOG CPLEX Optimization Studio V12.6.2 installed, you need to add
 ``<cplexdir>/python/<python_version>/<platform>`` to your PYTHONPATH.

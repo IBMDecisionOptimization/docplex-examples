@@ -29,11 +29,10 @@ def build_sports(docloud_context=None):
     nb_teams_in_division = nbs[0]
     nb_intra_divisional = nbs[1]
     nb_inter_divisional = nbs[2]
-    max_teams_in_division = nbs[3]
     assert len(team_div1) == len(team_div2)
-    teams = list(team_div1 | team_div2)
-    model.teams = teams
-    teams = range(1, 2 * nb_teams_in_division + 1)
+    model.teams = list(team_div1 | team_div2)
+    # team index ranges from 1 to 2N
+    team_range = range(1, 2 * nb_teams_in_division + 1)
 
     # Calculate the number of weeks necessary.
     nb_weeks = (nb_teams_in_division - 1) * nb_intra_divisional + nb_teams_in_division * nb_inter_divisional
@@ -49,10 +48,8 @@ def build_sports(docloud_context=None):
     nb_first_half_games = nb_weeks // 3
 
     # All possible matches (pairings) and whether of not each is intradivisional.
-    matches = sorted(
-        {Match(t1, t2, 1 if (t2 <= nb_teams_in_division or t1 > nb_teams_in_division) else 0) for t1 in teams for t2 in
-         teams
-         if t1 < t2})
+    matches = [Match(t1, t2, 1 if (t2 <= nb_teams_in_division or t1 > nb_teams_in_division) else 0)
+               for t1 in team_range for t2 in team_range if t1 < t2]
     model.matches = matches
     # Number of games to play between pairs depends on
     # whether the pairing is intradivisional or not.
@@ -68,7 +65,7 @@ def build_sports(docloud_context=None):
 
     for w in weeks:
         # Each team must play exactly once in a week.
-        for t in teams:
+        for t in team_range:
             max_teams_in_division = (plays[m, w] for m in matches if m.team1 == t or m.team2 == t)
             model.add_constraint(model.sum(max_teams_in_division) == 1,
                                  "plays_exactly_once_%d_%s" % (w, t))
@@ -79,7 +76,7 @@ def build_sports(docloud_context=None):
                 model.add_constraint(plays[m, w] + plays[m, w + 1] <= 1)
 
     # Some intradivisional games should be in the first half.
-    for t in teams:
+    for t in team_range:
         max_teams_in_division = [plays[m, w] for w in first_half_weeks for m in matches if
                                  m.is_divisional == 1 and (m.team1 == t or m.team2 == t)]
 
@@ -99,13 +96,16 @@ def solve_sports(docloud_context=None):
     model.solve()
     model.report()
     TSolution = namedtuple("TSolution", ["week", "is_divisional", "team1", "team2"])
-    solution = sorted(
-        {TSolution(w, m.is_divisional, model.teams[m.team1], model.teams[m.team2]) for m in model.matches for w in
-         model.weeks if
-         model.plays[m, w].get_value() == 1})
+
+    # iterate with weeks first
+    solution = [TSolution(w, m.is_divisional, model.teams[m.team1], model.teams[m.team2])
+                for w in model.weeks for m in model.matches
+                if model.plays[m, w].to_bool()]
+
     currweek = 0
     print("Intradivisional games are marked with a *")
     for s in solution:
+        # assume records are sorted by increasing week indices.
         if s.week != currweek:
             currweek = s.week
             print(" == == == == == == == == == == == == == == == == ")
