@@ -81,7 +81,7 @@ def run_GAP_model_with_Lagrangian_relaxation(As, Bs, Cs, max_iters=101, docloud_
             print("*** solve fails, stopping at iteration: %d" % loop_count)
             break
         best = mdl.objective_value
-        penalties = [pv.get_value() for pv in p_vars]
+        penalties = [pv.solution_value for pv in p_vars]
         print('%d> new lagrangian iteration, obj=%g, m=%s, p=%s' % (loop_count, best, str(multipliers), str(penalties)))
 
         do_stop = True
@@ -95,7 +95,7 @@ def run_GAP_model_with_Lagrangian_relaxation(As, Bs, Cs, max_iters=101, docloud_
 
         if do_stop:
             print("* Lagrangian relaxation succeeds, best={:g}, penalty={:g}, #iterations={}"
-                  .format(best, total_penalty.get_value(), loop_count))
+                  .format(best, total_penalty.solution_value, loop_count))
             break
         else:
             # update multipliers and start loop again.

@@ -78,7 +78,7 @@ class CuttingStockPatternGeneratorModel(AbstractModel):
         self.minimize(1 - self.scal_prod(self.use_vars, self.duals))
 
     def get_use_values(self):
-        assert self.has_solution()
+        assert self.solution
 
         return [use_var.solution_value for use_var in self.use_vars]
 
@@ -202,7 +202,7 @@ class CutStockMasterModel(AbstractModel):
         curr = self.infinity
         status = False
         while loop_count < 100 and abs(best - curr) >= obj_eps:
-            print('\n#items={},#patterns={},#vars={}'.format(len(self.items), len(self.patterns), self.variable_stats))
+            print('\n#items={},#patterns={}'.format(len(self.items), len(self.patterns)))
             if loop_count > 0:
                 self.refresh_model()
             status = master_model.solve()
@@ -212,7 +212,7 @@ class CutStockMasterModel(AbstractModel):
                 print('{}> master model fails, stop'.format(loop_count))
                 break
             else:
-                assert master_model.has_solution()
+                assert master_model.solution
                 curr = self.objective_value
                 print('{}> new column generation iteration, best={:g}, curr={:g}'.format(loop_count, best, curr))
                 duals = self.get_fill_dual_values()

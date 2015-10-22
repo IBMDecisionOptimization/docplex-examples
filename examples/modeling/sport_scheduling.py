@@ -92,7 +92,6 @@ def build_sports(docloud_context=None):
 def solve_sports(docloud_context=None):
     model = build_sports(docloud_context=docloud_context)
     model.print_information()
-    model.export_as_lp()
     model.solve()
     model.report()
     TSolution = namedtuple("TSolution", ["week", "is_divisional", "team1", "team2"])
@@ -126,7 +125,7 @@ if __name__ == '__main__':
        url = "https://docloud.service.com/job_manager/rest/v1"
        api_key = "example api_key"
     """
-    print("This example hits the limits of CPLEX Optimization Studio and will work only the DOcloud solve.")
+    print("This example hits the limits of CPLEX Optimization Studio Community Edition and will work only with the DOcloud solve or a commercial edition of CPLEX.")
     url = "YOUR_URL_HERE"
     api_key = None
     ctx = DOcloudContext.make_default_context(url, api_key)

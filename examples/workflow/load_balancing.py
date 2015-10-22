@@ -135,15 +135,15 @@ class LoadBalancingModel(AbstractModel):
     def print_solution(self, do_filter_zeros=True):
         m = self
         active_servers = sorted([s for s in m.servers if m.active_var_by_server[s].solution_value == 1])
-        print ("Active Servers: {}".format(active_servers))
-        print ("*** User assignment ***")
+        print("Active Servers: {}".format(active_servers))
+        print("*** User assignment ***")
         for (u, s) in sorted(m.assign_user_to_server_vars):
             if m.assign_user_to_server_vars[(u, s)].solution_value == 1:
-                print ("{} uses {}, migration: {}".format(u, s, "yes" if m._is_migration(u, s) else "no"))
-        print ("*** Servers sleeping processes ***")
+                print("{} uses {}, migration: {}".format(u, s, "yes" if m._is_migration(u, s) else "no"))
+        print("*** Servers sleeping processes ***")
         for s in active_servers:
             sleeping = sum(self.assign_user_to_server_vars[u, s].solution_value * u.sleeping for u in self.users)
-            print ("Server: {} #sleeping={}".format(s, sleeping))
+            print("Server: {} #sleeping={}".format(s, sleeping))
 
 
 SERVERS = ["server002", "server003", "server001", "server006", "server007", "server004", "server005"]

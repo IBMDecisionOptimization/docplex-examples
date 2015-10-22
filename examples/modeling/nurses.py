@@ -251,7 +251,7 @@ def print_solution(model):
     print("*************************** Solution ***************************")
     print("Allocation By Department:")
     for d in model.departments:
-        print ("\t{}: {}".format(d, sum(
+        print("\t{}: {}".format(d, sum(
             model.nurse_assignment_vars[n, s].solution_value for n in model.nurses for s in model.shifts if
             s.department == d)))
     print("Cost By Department:")
@@ -267,7 +267,7 @@ def print_solution(model):
         print("\t{}: total hours:{}".format(n.name, total_hours))
         for s in model.shifts:
             if model.nurse_assignment_vars[n, s].solution_value == 1:
-                print ("\t\t{}: {} {}-{}".format(s.day.name, s.department, s.start_time, s.end_time))
+                print("\t\t{}: {} {}-{}".format(s.day.name, s.department, s.start_time, s.end_time))
 
 
 SKILLS = ["Anaesthesiology",
