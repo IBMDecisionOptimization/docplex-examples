@@ -106,7 +106,7 @@ def make_house(loc, deadline):
         allocs = []
         for w in range(nbWorkers):
             if 0 < t.skills[w]:
-                wt = interval_var(present=False, name='H' + str(loc) + '-' + t.name + '(' + workerNames[w] + ')')
+                wt = interval_var(optional=True, name='H' + str(loc) + '-' + t.name + '(' + workerNames[w] + ')')
                 worker_tasks[w].append(wt)
                 allocs.append(wt)
                 total_skill += (t.skills[w] * presence_of(wt))

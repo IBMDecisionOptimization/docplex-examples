@@ -25,7 +25,7 @@ A = [
 
 
 def run_GAP_model(As, Bs, Cs, context=None):
-    mdl = Model('GAP per Wolsey -without- Lagrangian Relaxation', 0, context=context)
+    mdl = Model('GAP per Wolsey -without- Lagrangian Relaxation', context=context)
     print("#As={}, #Bs={}, #Cs={}".format(len(As), len(Bs), len(Cs)))
     number_of_cs = len(C)
     # variables
@@ -52,7 +52,7 @@ def run_GAP_model(As, Bs, Cs, context=None):
 
 
 def run_GAP_model_with_Lagrangian_relaxation(As, Bs, Cs, max_iters=101, context=None):
-    mdl = Model('GAP per Wolsey -with- Lagrangian Relaxation', 0, context=context)
+    mdl = Model('GAP per Wolsey -with- Lagrangian Relaxation', context=context)
     print("#As={}, #Bs={}, #Cs={}".format(len(As), len(Bs), len(Cs)))
     c_range = range(len(Cs))
     # variables

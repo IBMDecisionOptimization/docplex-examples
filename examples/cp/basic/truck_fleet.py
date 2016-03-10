@@ -90,11 +90,11 @@ allowedContainerConfigs = ((0, 3, 4, 6),
                            (2, 4, 5, 6))
 for j in range(0, nbOrders):
     configOfContainer = integer_var(allowedContainerConfigs[colors[j]])
-    mdl.add(configOfContainer == element(where[j], truckConfigs))
+    mdl.add(configOfContainer == truckConfigs[where[j]])
 
 # Only one customer per truck 
 for j in range(0, nbOrders):
-    mdl.add(element(where[j], customerOfTruck) == customerOfOrder[j])
+    mdl.add(customerOfTruck[where[j]] == customerOfOrder[j])
 
 # Non-used trucks are at the end
 for j in range(1, nbTrucks):

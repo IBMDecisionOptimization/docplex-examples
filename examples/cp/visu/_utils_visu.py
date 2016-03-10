@@ -285,12 +285,18 @@ class _SequencePanel(_Panel):
         axes.set_yticklabels(names)
         for seq in self.sequences:
             for itv in seq.intervals:
-                if 0 <= itv.color:
-                    axes.plot([itv.start, itv.end], [n - seq.get_position(), n - seq.get_position()], marker='|',
-                              markeredgecolor=(0.52, 0.52, 0.52), markersize=iw, linestyle='')
-                    axes.hlines(n - seq.get_position(), itv.start, itv.end, colors=tl.get_color(itv.color), lw=iw)
+                if isinstance(itv.color, int):
+                    if 0 <= itv.color:
+                        axes.plot([itv.start, itv.end], [n - seq.get_position(), n - seq.get_position()], marker='|',
+                                  markeredgecolor=(0.52, 0.52, 0.52), markersize=iw, linestyle='')
+                        axes.hlines(n - seq.get_position(), itv.start, itv.end, colors=tl.get_color(itv.color), lw=iw)
+                    else:
+                        axes.hlines(n - seq.get_position(), itv.start, itv.end, colors=tl.get_color(itv.color), lw=tw)
                 else:
-                    axes.hlines(n - seq.get_position(), itv.start, itv.end, colors=tl.get_color(itv.color), lw=tw)
+                    axes.plot([itv.start, itv.end], [n - seq.get_position(), n - seq.get_position()], marker='|',
+                                  markeredgecolor=(0.52, 0.52, 0.52), markersize=iw, linestyle='')
+                    axes.hlines(n - seq.get_position(), itv.start, itv.end, colors=tl.get_color(itv.color), lw=iw)
+
                 if itv.name is not None:
                     axes.text(float(itv.start + itv.end) / 2, n - seq.get_position(), itv.name,
                               horizontalalignment='center', verticalalignment='center')

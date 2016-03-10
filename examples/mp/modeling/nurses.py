@@ -6,36 +6,37 @@
 
 from collections import namedtuple
 
-from enum import Enum
-
 from docplex.mp.model import Model
 from docplex.mp.context import Context
 
+# utility to conevrt a weekday string to an index in 0..6
+_all_days = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]
 
-class Weekday(Enum):
-    (Monday, Tuesday, Wednesday, Thursday, Friday, Saturday, Sunday) = range(1, 8)  # [1..7]
+
+def day_to_day_week(day):
+    day_map = {day: d for d, day in enumerate(_all_days)}
+    return day_map[day.lower()]
 
 
 TWorkRules = namedtuple("TWorkRules", ["work_time_max"])
-TShift1 = namedtuple("TShift", ["department", "day", "start_time", "end_time", "min_requirement", "max_requirement"])
 TVacation = namedtuple("TVacation", ["nurse", "day"])
 TNursePair = namedtuple("TNursePair", ["firstNurse", "secondNurse"])
 TSkillRequirement = namedtuple("TSkillRequirement", ["department", "skill", "required"])
 
 
 # subclass the namedtuple to refine the str() method as the nurse's name
-class TNurse(namedtuple("TNurse1", ["name", "seniority", "qualification", "payRate"])):
+class TNurse(namedtuple("TNurse1", ["name", "seniority", "qualification", "pay_rate"])):
     def __str__(self):
         return self.name
 
 
 # specialized namedtuple to redefine its str() method
-class TShift(TShift1):
+class TShift(namedtuple("TShift", ["department", "day", "start_time", "end_time", "min_requirement", "max_requirement"])):
     def __str__(self):
         # keep first two characters in department, uppercase
         dept2 = self.department[0:4].upper()
         # keep 3 days of weekday
-        dayname = self.day.name[0:3]
+        dayname = self.day[0:3]
         return '{}_{}_{:02d}'.format(dept2, dayname, self.start_time)
 
 
@@ -49,13 +50,11 @@ class ShiftActivity(object):
 
         :return:
         """
-        ONE_DAY = 24
-        time = ONE_DAY * (day_index - 1)
+        time = 24 * (day_index - 1)
         time += time_of_day
         return time
 
     def __init__(self, weekday, start_time_of_day, end_time_of_day):
-        assert (isinstance(weekday, Weekday))
         assert (start_time_of_day >= 0)
         assert (start_time_of_day <= 24)
         assert (end_time_of_day >= 0)
@@ -65,11 +64,11 @@ class ShiftActivity(object):
         self._start_time_of_day = start_time_of_day
         self._end_time_of_day = end_time_of_day
         # conversion to absolute time.
-        start_day_index = weekday.value
+        start_day_index = day_to_day_week(self._weekday)
         self.start_time = self.to_abstime(start_day_index, start_time_of_day)
         end_day_index = start_day_index if end_time_of_day > start_time_of_day else start_day_index + 1
         self.end_time = self.to_abstime(end_day_index, end_time_of_day)
-        assert (self.end_time > self.start_time)
+        assert self.end_time > self.start_time
 
     @property
     def duration(self):
@@ -83,7 +82,8 @@ class ShiftActivity(object):
 
 
 def solve(model):
-    if model.solve():
+    sol = model.solve(log_output=True)
+    if sol is not None:
         print("solution for a cost of {}".format(model.objective_value))
         print_information(model)
         print_solution(model)
@@ -106,139 +106,163 @@ def load_data(model, *args):
     model.skill_requirements = SKILL_REQUIREMENTS
     # transactional data
     if number_of_args >= 6:
-        model.vacations = [TVacation._make(vacation_row) for vacation_row in args[5]]
+        model.vacations = [TVacation(*vacation_row) for vacation_row in args[5]]
     else:
         model.vacations = []
     if number_of_args >= 7:
-        model.nurse_associations = [TNursePair._make(npr) for npr in args[6]]
+        model.nurse_associations = [TNursePair(*npr) for npr in args[6]]
     else:
         model.nurse_associations = []
     if number_of_args >= 8:
-        model.nurse_incompatibilities = [TNursePair._make(npr) for npr in args[7]]
+        model.nurse_incompatibilities = [TNursePair(*npr) for npr in args[7]]
     else:
         model.nurse_incompatibilities = []
 
 
 def setup_data(model):
     """ compute internal data """
-    all_nurses = model.nurses
-    model.vacations_by_nurse = {n: [vac_day for (vac_nurse_id, vac_day) in model.vacations if vac_nurse_id == n.name]
-                                for n in model.nurses}
-    # compute shift activities (start, end duration)
+    # compute shift activities (start, end duration) and stor ethem in a dict indexed by shifts
     model.shift_activities = {s: ShiftActivity(s.day, s.start_time, s.end_time) for s in model.shifts}
-    model.nurses_by_id = {n.name: n for n in all_nurses}
+    # map from nurse names to nurse tuples.
+    model.nurses_by_id = {n.name: n for n in model.nurses}
 
 
 def setup_variables(model):
     all_nurses, all_shifts = model.nurses, model.shifts
+    # one binary variable for each pair (nurse, shift) equal to 1 iff nurse n is assigned to shift s
     model.nurse_assignment_vars = model.binary_var_matrix(all_nurses, all_shifts, 'NurseAssigned')
+    # for each nurse, allocate one variable for worktime
     model.nurse_work_time_vars = model.continuous_var_dict(all_nurses, lb=0, name='NurseWorkTime')
+    # and two variables for over_average and under-average work time
     model.nurse_over_average_time_vars = model.continuous_var_dict(all_nurses, lb=0,
                                                                    name='NurseOverAverageWorkTime')
     model.nurse_under_average_time_vars = model.continuous_var_dict(all_nurses, lb=0,
                                                                     name='NurseUnderAverageWorkTime')
-    model.average_nurse_work_time = model.continuous_var(lb=0, name='AverageNurseWorkTime')
+    # finally the global average wotk time
+    model.average_nurse_work_time = model.continuous_var(lb=0, name='AverageWorkTime')
 
 
 def setup_constraints(model):
     all_nurses = model.nurses
     all_shifts = model.shifts
-    nurse_assigned_vars = model.nurse_assignment_vars
-    nurse_work_time_vars = model.nurse_work_time_vars
+    nurse_assigned = model.nurse_assignment_vars
+    nurse_work_time = model.nurse_work_time_vars
     shift_activities = model.shift_activities
     nurses_by_id = model.nurses_by_id
     max_work_time = model.work_rules.work_time_max
 
     # define average
     model.add_constraint(
-        len(all_nurses) * model.average_nurse_work_time == model.sum(
-            model.nurse_work_time_vars[n] for n in model.nurses),
-        "average")
+        len(all_nurses) * model.average_nurse_work_time == model.sum(nurse_work_time[n] for n in all_nurses), "average")
 
     # compute nurse work time , average and under, over
     for n in all_nurses:
-        work_time_var = nurse_work_time_vars[n]
+        work_time_var = nurse_work_time[n]
         model.add_constraint(
-            work_time_var == model.sum(nurse_assigned_vars[n, s] * shift_activities[s].duration for s in model.shifts),
-            "work_time_%s" % str(n))
-        model.add_constraint(work_time_var == model.average_nurse_work_time + model.nurse_over_average_time_vars[n] -
-                             model.nurse_under_average_time_vars[n], "averag_work_time_%s" % str(n))
+            work_time_var == model.sum(nurse_assigned[n, s] * shift_activities[s].duration for s in all_shifts),
+            "work_time_{0!s}".format(n))
 
-        model.add_constraint(work_time_var <= max_work_time, "max_time_%s" % str(n))
+        # relate over/under average worktime variables to the worktime variables
+        # the trick here is that variables have zero lower bound
+        # however, thse variables are not completely defined by this constraint,
+        # only their difference is.
+        # if these variables are part of the objective, CPLEX wil naturally minimize their value,
+        # as expected
+        model.add_constraint(
+            work_time_var == model.average_nurse_work_time
+            + model.nurse_over_average_time_vars[n]
+            - model.nurse_under_average_time_vars[n],
+            "average_work_time_{0!s}".format(n))
+
+        # state the maximum work time as a constraint, so that is can be relaxed,
+        # should the problem become infeasible.
+        model.add_constraint(work_time_var <= max_work_time, "max_time_{0!s}".format(n))
 
     # vacations
-    for n in all_nurses:
-        for vac_day in model.vacations_by_nurse[n]:
-            for shift in (s for s in all_shifts if s.day == vac_day):
-                model.add_constraint(nurse_assigned_vars[n, shift] == 0,
-                                     "medium_vacations_%s_%s_%s" % (str(n), vac_day, str(shift)))
+    for vac_nurse_id, vac_day in model.vacations:
+        vac_n = nurses_by_id[vac_nurse_id]
+        for shift in (s for s in all_shifts if s.day == vac_day):
+            model.add_constraint(nurse_assigned[vac_n, shift] == 0,
+                                 "medium_vacations_{0!s}_{1!s}_{2!s}".format(vac_n, vac_day, shift))
 
     # a nurse cannot be assigned overlapping shifts
+    # post only one constraint per couple(s1, s2)
     model.number_of_overlaps = 0
-    for s1 in all_shifts:
-        for s2 in all_shifts:
-            if s1 != s2 and shift_activities[s1].overlaps(shift_activities[s2]):
+    nb_shifts = len(all_shifts)
+    for i1 in range(nb_shifts):
+        for i2 in range(i1 + 1, nb_shifts):
+            s1 = all_shifts[i1]
+            s2 = all_shifts[i2]
+            if shift_activities[s1].overlaps(shift_activities[s2]):
                 model.number_of_overlaps += 1
                 for n in all_nurses:
-                    model.add_constraint(nurse_assigned_vars[n, s1] + nurse_assigned_vars[n, s2] <= 1,
-                                         "medium_overlapping_%s_%s_%s" % (str(s1), str(s2), str(n)))
+                    model.add_constraint(nurse_assigned[n, s1] + nurse_assigned[n, s2] <= 1,
+                                         "high_overlapping_{0!s}_{1!s}_{2!s}".format(s1, s2, n))
 
     for s in all_shifts:
         demand_min = s.min_requirement
         demand_max = s.max_requirement
-        model.add_range(demand_min, model.sum([nurse_assigned_vars[n, s] for n in model.nurses]), demand_max,
-                        "medium_shift_%s" % str(s))
+        total_assigned = model.sum(nurse_assigned[n, s] for n in model.nurses)
+        model.add_constraint(total_assigned >= demand_min,
+                             "high_req_min_{0!s}_{1}".format(s, demand_min))
+        model.add_constraint(total_assigned <= demand_max,
+                             "medium_req_max_{0!s}_{1}".format(s, demand_max))
 
     for (dept, skill, required) in model.skill_requirements:
         if required > 0:
             for dsh in (s for s in all_shifts if dept == s.department):
-                model.add_constraint(model.sum(nurse_assigned_vars[skilled_nurse, dsh] for skilled_nurse in
+                model.add_constraint(model.sum(nurse_assigned[skilled_nurse, dsh] for skilled_nurse in
                                                (n for n in all_nurses if
                                                 n.name in model.nurse_skills.keys() and skill in model.nurse_skills[
                                                     n.name])) >= required,
-                                     "high_required_%s_%s_%s_%s" % (str(dept), str(skill), str(required), str(dsh)))
+                                     "high_required_{0!s}_{1!s}_{2!s}_{3!s}".format(dept, skill, required, dsh))
 
     # nurse-nurse associations
+    # for each pair of associted nurses, their assignement variables are equal
+    # over all shifts.
     c = 0
-    for (first_nurse_id, second_nurse_id) in model.nurse_associations:
-        if first_nurse_id in nurses_by_id and second_nurse_id in nurses_by_id:
-            first_nurse = nurses_by_id[first_nurse_id]
-            second_nurse = nurses_by_id[second_nurse_id]
+    for (nurse_id1, nurse_id2) in model.nurse_associations:
+        if nurse_id1 in nurses_by_id and nurse_id2 in nurses_by_id:
+            nurse1 = nurses_by_id[nurse_id1]
+            nurse2 = nurses_by_id[nurse_id2]
             for s in all_shifts:
                 c += 1
-                ct_name = 'medium_ct_nurse_assoc%s_%s_%d' % (first_nurse_id, second_nurse_id, c)
-                model.add_constraint(nurse_assigned_vars[first_nurse, s] == nurse_assigned_vars[second_nurse, s],
-                                     ct_name)
+                ctname = 'medium_ct_nurse_assoc_{0!s}_{1!s}_{2:d}'.format(nurse_id1, nurse_id2, c)
+                model.add_constraint(nurse_assigned[nurse1, s] == nurse_assigned[nurse2, s], ctname)
 
     # nurse-nurse incompatibilities
+    # for each pair of incompatible nurses, the sum of assigned variables is less than one
+    # in other terms, both nurses can never be assigned to the same shift
     c = 0
-    for (first_nurse_id, second_nurse_id) in model.nurse_incompatibilities:
-        if first_nurse_id in nurses_by_id and second_nurse_id in nurses_by_id:
-            first_nurse = nurses_by_id[first_nurse_id]
-            second_nurse = nurses_by_id[second_nurse_id]
+    for (nurse_id1, nurse_id2) in model.nurse_incompatibilities:
+        if nurse_id1 in nurses_by_id and nurse_id2 in nurses_by_id:
+            nurse1 = nurses_by_id[nurse_id1]
+            nurse2 = nurses_by_id[nurse_id2]
             for s in all_shifts:
                 c += 1
-                ct_name = 'medium_ct_nurse_incompat_%s_%s_%d' % (first_nurse_id, second_nurse_id, c)
-                model.add_constraint(nurse_assigned_vars[first_nurse, s] + nurse_assigned_vars[second_nurse, s] <= 1,
-                                     ct_name)
+                ctname = 'medium_ct_nurse_incompat_{0!s}_{1!s}_{2:d}'.format(nurse_id1, nurse_id2, c)
+                model.add_constraint(nurse_assigned[nurse1, s] + nurse_assigned[nurse2, s] <= 1, ctname)
 
-    model.nurse_costs = [model.nurse_assignment_vars[n, s] * n.payRate * model.shift_activities[s].duration for n in
+    model.total_number_of_assignments = model.sum(nurse_assigned[n,s] for n in all_nurses for s in all_shifts)
+    #model.total_salary_cost = model.sum(nurse_work_time[n] * n.pay_rate for n in all_nurses)
+    model.nurse_costs = [model.nurse_assignment_vars[n, s] * n.pay_rate * model.shift_activities[s].duration for n in
                          model.nurses
                          for s in model.shifts]
-    model.total_number_of_assignments = model.sum(
-        model.nurse_assignment_vars[n, s] for n in model.nurses for s in model.shifts)
     model.total_salary_cost = model.sum(model.nurse_costs)
-
 
 def setup_objective(model):
     model.add_kpi(model.total_salary_cost, "Total salary cost")
     model.add_kpi(model.total_number_of_assignments, "Total number of assignments")
     model.add_kpi(model.average_nurse_work_time)
 
-    total_fairness = model.sum(model.nurse_over_average_time_vars[n] for n in model.nurses) + model.sum(
-        model.nurse_under_average_time_vars[n] for n in model.nurses)
+    total_over_average_worktime = model.sum(model.nurse_over_average_time_vars[n] for n in model.nurses)
+    total_under_average_worktime = model.sum(model.nurse_under_average_time_vars[n] for n in model.nurses)
+    model.add_kpi(total_over_average_worktime, "Total over-average worktime")
+    model.add_kpi(total_under_average_worktime, "Total under-average worktime")
+    total_fairness = total_over_average_worktime + total_under_average_worktime
     model.add_kpi(total_fairness, "Total fairness")
-    model.minimize(model.total_salary_cost + model.total_number_of_assignments + total_fairness)
+
+    model.minimize(model.total_salary_cost + total_fairness + model.total_number_of_assignments)
 
 
 def print_information(model):
@@ -263,7 +287,7 @@ def print_solution(model):
     print("Cost By Department:")
     for d in model.departments:
         cost = sum(
-            model.nurse_assignment_vars[n, s].solution_value * n.payRate * model.shift_activities[s].duration for n in
+            model.nurse_assignment_vars[n, s].solution_value * n.pay_rate * model.shift_activities[s].duration for n in
             model.nurses for s in model.shifts if s.department == d)
         print("\t{}: {}".format(d, cost))
     print("Nurses Assignments")
@@ -273,7 +297,7 @@ def print_solution(model):
         print("\t{}: total hours:{}".format(n.name, total_hours))
         for s in model.shifts:
             if model.nurse_assignment_vars[n, s].solution_value == 1:
-                print("\t\t{}: {} {}-{}".format(s.day.name, s.department, s.start_time, s.end_time))
+                print("\t\t{}: {} {}-{}".format(s.day, s.department, s.start_time, s.end_time))
 
 
 SKILLS = ["Anaesthesiology",
@@ -321,47 +345,47 @@ NURSES = [("Anne", 11, 1, 25),
           ("Zoe", 8, 3, 29)
           ]
 
-SHIFTS = [("Emergency", Weekday.Monday, 2, 8, 3, 5),
-          ("Emergency", Weekday.Monday, 8, 12, 4, 7),
-          ("Emergency", Weekday.Monday, 12, 18, 2, 5),
-          ("Emergency", Weekday.Monday, 18, 2, 3, 7),
-          ("Consultation", Weekday.Monday, 8, 12, 10, 13),
-          ("Consultation", Weekday.Monday, 12, 18, 8, 12),
-          ("Cardiac Care", Weekday.Monday, 8, 12, 10, 13),
-          ("Cardiac Care", Weekday.Monday, 12, 18, 8, 12),
-          ("Emergency", Weekday.Tuesday, 8, 12, 4, 7),
-          ("Emergency", Weekday.Tuesday, 12, 18, 2, 5),
-          ("Emergency", Weekday.Tuesday, 18, 2, 3, 7),
-          ("Consultation", Weekday.Tuesday, 8, 12, 10, 13),
-          ("Consultation", Weekday.Tuesday, 12, 18, 8, 12),
-          ("Cardiac Care", Weekday.Tuesday, 8, 12, 4, 7),
-          ("Cardiac Care", Weekday.Tuesday, 12, 18, 2, 5),
-          ("Cardiac Care", Weekday.Tuesday, 18, 2, 3, 7),
-          ("Emergency", Weekday.Wednesday, 2, 8, 3, 5),
-          ("Emergency", Weekday.Wednesday, 8, 12, 4, 7),
-          ("Emergency", Weekday.Wednesday, 12, 18, 2, 5),
-          ("Emergency", Weekday.Wednesday, 18, 2, 3, 7),
-          ("Consultation", Weekday.Wednesday, 8, 12, 10, 13),
-          ("Consultation", Weekday.Wednesday, 12, 18, 8, 12),
-          ("Emergency", Weekday.Thursday, 2, 8, 3, 5),
-          ("Emergency", Weekday.Thursday, 8, 12, 4, 7),
-          ("Emergency", Weekday.Thursday, 12, 18, 2, 5),
-          ("Emergency", Weekday.Thursday, 18, 2, 3, 7),
-          ("Consultation", Weekday.Thursday, 8, 12, 10, 13),
-          ("Consultation", Weekday.Thursday, 12, 18, 8, 12),
-          ("Emergency", Weekday.Friday, 2, 8, 3, 5),
-          ("Emergency", Weekday.Friday, 8, 12, 4, 7),
-          ("Emergency", Weekday.Friday, 12, 18, 2, 5),
-          ("Emergency", Weekday.Friday, 18, 2, 3, 7),
-          ("Consultation", Weekday.Friday, 8, 12, 10, 13),
-          ("Consultation", Weekday.Friday, 12, 18, 8, 12),
-          ("Emergency", Weekday.Saturday, 2, 12, 5, 7),
-          ("Emergency", Weekday.Saturday, 12, 20, 7, 9),
-          ("Emergency", Weekday.Saturday, 20, 2, 12, 12),
-          ("Emergency", Weekday.Sunday, 2, 12, 5, 7),
-          ("Emergency", Weekday.Sunday, 12, 20, 7, 9),
-          ("Emergency", Weekday.Sunday, 20, 2, 12, 12),
-          ("Geriatrics", Weekday.Sunday, 8, 10, 2, 5)]
+SHIFTS = [("Emergency", "monday", 2, 8, 3, 5),
+          ("Emergency", "monday", 8, 12, 4, 7),
+          ("Emergency", "monday", 12, 18, 2, 5),
+          ("Emergency", "monday", 18, 2, 3, 7),
+          ("Consultation", "monday", 8, 12, 10, 13),
+          ("Consultation", "monday", 12, 18, 8, 12),
+          ("Cardiac Care", "monday", 8, 12, 10, 13),
+          ("Cardiac Care", "monday", 12, 18, 8, 12),
+          ("Emergency", "tuesday", 8, 12, 4, 7),
+          ("Emergency", "tuesday", 12, 18, 2, 5),
+          ("Emergency", "tuesday", 18, 2, 3, 7),
+          ("Consultation", "tuesday", 8, 12, 10, 13),
+          ("Consultation", "tuesday", 12, 18, 8, 12),
+          ("Cardiac Care", "tuesday", 8, 12, 4, 7),
+          ("Cardiac Care", "tuesday", 12, 18, 2, 5),
+          ("Cardiac Care", "tuesday", 18, 2, 3, 7),
+          ("Emergency", "wednesday", 2, 8, 3, 5),
+          ("Emergency", "wednesday", 8, 12, 4, 7),
+          ("Emergency", "wednesday", 12, 18, 2, 5),
+          ("Emergency", "wednesday", 18, 2, 3, 7),
+          ("Consultation", "wednesday", 8, 12, 10, 13),
+          ("Consultation", "wednesday", 12, 18, 8, 12),
+          ("Emergency", "thursday", 2, 8, 3, 5),
+          ("Emergency", "thursday", 8, 12, 4, 7),
+          ("Emergency", "thursday", 12, 18, 2, 5),
+          ("Emergency", "thursday", 18, 2, 3, 7),
+          ("Consultation", "thursday", 8, 12, 10, 13),
+          ("Consultation", "thursday", 12, 18, 8, 12),
+          ("Emergency", "friday", 2, 8, 3, 5),
+          ("Emergency", "friday", 8, 12, 4, 7),
+          ("Emergency", "friday", 12, 18, 2, 5),
+          ("Emergency", "friday", 18, 2, 3, 7),
+          ("Consultation", "friday", 8, 12, 10, 13),
+          ("Consultation", "friday", 12, 18, 8, 12),
+          ("Emergency", "saturday", 2, 12, 5, 7),
+          ("Emergency", "saturday", 12, 20, 7, 9),
+          ("Emergency", "saturday", 20, 2, 12, 12),
+          ("Emergency", "sunday", 2, 12, 5, 7),
+          ("Emergency", "sunday", 12, 20, 7, 9),
+          ("Emergency", "sunday", 20, 2, 12, 12),
+          ("Geriatrics", "sunday", 8, 10, 2, 5)]
 
 NURSE_SKILLS = {"Anne": ["Anaesthesiology", "Oncology", "Pediatrics"],
                 "Betsy": ["Cardiac Care"],
@@ -378,65 +402,65 @@ NURSE_SKILLS = {"Anne": ["Anaesthesiology", "Oncology", "Pediatrics"],
                 "Zoe": ["Cardiac Care"]
                 }
 
-VACATIONS = [("Anne", Weekday.Friday),
-             ("Anne", Weekday.Sunday),
-             ("Cathy", Weekday.Thursday),
-             ("Cathy", Weekday.Tuesday),
-             ("Joan", Weekday.Thursday),
-             ("Joan", Weekday.Saturday),
-             ("Juliet", Weekday.Monday),
-             ("Juliet", Weekday.Tuesday),
-             ("Juliet", Weekday.Thursday),
-             ("Nathalie", Weekday.Sunday),
-             ("Nathalie", Weekday.Thursday),
-             ("Isabelle", Weekday.Monday),
-             ("Isabelle", Weekday.Thursday),
-             ("Patricia", Weekday.Saturday),
-             ("Patricia", Weekday.Wednesday),
-             ("Nicole", Weekday.Friday),
-             ("Nicole", Weekday.Wednesday),
-             ("Jude", Weekday.Tuesday),
-             ("Jude", Weekday.Friday),
-             ("Debbie", Weekday.Saturday),
-             ("Debbie", Weekday.Wednesday),
-             ("Joyce", Weekday.Sunday),
-             ("Joyce", Weekday.Thursday),
-             ("Chris", Weekday.Thursday),
-             ("Chris", Weekday.Tuesday),
-             ("Cecilia", Weekday.Friday),
-             ("Cecilia", Weekday.Wednesday),
-             ("Patrick", Weekday.Saturday),
-             ("Patrick", Weekday.Sunday),
-             ("Cindy", Weekday.Sunday),
-             ("Dee", Weekday.Tuesday),
-             ("Dee", Weekday.Friday),
-             ("Jemma", Weekday.Friday),
-             ("Jemma", Weekday.Wednesday),
-             ("Bethanie", Weekday.Wednesday),
-             ("Bethanie", Weekday.Tuesday),
-             ("Betsy", Weekday.Monday),
-             ("Betsy", Weekday.Thursday),
-             ("David", Weekday.Monday),
-             ("Gloria", Weekday.Monday),
-             ("Jane", Weekday.Saturday),
-             ("Jane", Weekday.Sunday),
-             ("Janelle", Weekday.Wednesday),
-             ("Janelle", Weekday.Friday),
-             ("Julie", Weekday.Sunday),
-             ("Kate", Weekday.Tuesday),
-             ("Kate", Weekday.Monday),
-             ("Nancy", Weekday.Sunday),
-             ("Roberta", Weekday.Friday),
-             ("Roberta", Weekday.Saturday),
-             ("Janice", Weekday.Tuesday),
-             ("Janice", Weekday.Friday),
-             ("Suzanne", Weekday.Monday),
-             ("Vickie", Weekday.Wednesday),
-             ("Vickie", Weekday.Friday),
-             ("Wendie", Weekday.Thursday),
-             ("Wendie", Weekday.Saturday),
-             ("Zoe", Weekday.Saturday),
-             ("Zoe", Weekday.Sunday)]
+VACATIONS = [("Anne", "friday"),
+             ("Anne", "sunday"),
+             ("Cathy", "thursday"),
+             ("Cathy", "tuesday"),
+             ("Joan", "thursday"),
+             ("Joan", "saturday"),
+             ("Juliet", "monday"),
+             ("Juliet", "tuesday"),
+             ("Juliet", "thursday"),
+             ("Nathalie", "sunday"),
+             ("Nathalie", "thursday"),
+             ("Isabelle", "monday"),
+             ("Isabelle", "thursday"),
+             ("Patricia", "saturday"),
+             ("Patricia", "wednesday"),
+             ("Nicole", "friday"),
+             ("Nicole", "wednesday"),
+             ("Jude", "tuesday"),
+             ("Jude", "friday"),
+             ("Debbie", "saturday"),
+             ("Debbie", "wednesday"),
+             ("Joyce", "sunday"),
+             ("Joyce", "thursday"),
+             ("Chris", "thursday"),
+             ("Chris", "tuesday"),
+             ("Cecilia", "friday"),
+             ("Cecilia", "wednesday"),
+             ("Patrick", "saturday"),
+             ("Patrick", "sunday"),
+             ("Cindy", "sunday"),
+             ("Dee", "tuesday"),
+             ("Dee", "friday"),
+             ("Jemma", "friday"),
+             ("Jemma", "wednesday"),
+             ("Bethanie", "wednesday"),
+             ("Bethanie", "tuesday"),
+             ("Betsy", "monday"),
+             ("Betsy", "thursday"),
+             ("David", "monday"),
+             ("Gloria", "monday"),
+             ("Jane", "saturday"),
+             ("Jane", "sunday"),
+             ("Janelle", "wednesday"),
+             ("Janelle", "friday"),
+             ("Julie", "sunday"),
+             ("Kate", "tuesday"),
+             ("Kate", "monday"),
+             ("Nancy", "sunday"),
+             ("Roberta", "friday"),
+             ("Roberta", "saturday"),
+             ("Janice", "tuesday"),
+             ("Janice", "friday"),
+             ("Suzanne", "monday"),
+             ("Vickie", "wednesday"),
+             ("Vickie", "friday"),
+             ("Wendie", "thursday"),
+             ("Wendie", "saturday"),
+             ("Zoe", "saturday"),
+             ("Zoe", "sunday")]
 
 NURSE_ASSOCIATIONS = [("Isabelle", "Dee"),
                       ("Anne", "Patrick")]
@@ -459,8 +483,8 @@ SKILL_REQUIREMENTS = [("Emergency", "Cardiac Care", 1)]
 DEFAULT_WORK_RULES = TWorkRules(40)
 
 
-def build(context=None):
-    mdl = Model("Nurses", context=context)
+def build(context=None, **kwargs):
+    mdl = Model("Nurses", context=context, **kwargs)
     load_data(mdl, DEPTS, SKILLS, SHIFTS, NURSES, NURSE_SKILLS, VACATIONS, NURSE_ASSOCIATIONS,
               NURSE_INCOMPATIBILITIES)
     setup_data(mdl)
@@ -501,5 +525,4 @@ if __name__ == '__main__':
 
     env = Environment()
     env.print_information()
-
     run(ctx)

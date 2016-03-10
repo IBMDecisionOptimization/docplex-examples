@@ -65,7 +65,7 @@ mdl = CpoModel()
 
 OPS = {o[0]: interval_var(name="O" + str(o[0])) for o in ops}
 MODES = {m[0]: interval_var(name="O" + str(m[1]) + "-M" + str(m[0]),
-                            present=False,
+                            optional=True,
                             size=m[4]) for m in modes}
 MACHS = [[] for j in range(nb_mchs)]
 ALTS = {o[0]: [] for o in ops}

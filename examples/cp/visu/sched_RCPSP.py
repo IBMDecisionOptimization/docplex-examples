@@ -62,7 +62,7 @@ for i in range(nbTasks):
 mdl = CpoModel()
 
 tasks = [interval_var(name='T' + str(i + 1), size=durations[i]) for i in range(nbTasks)]
-resources = [pulse(0, 0, 0) for j in range(nbResources)]
+resources = [None for j in range(nbResources)]
 
 # Add precedence constraints
 for i in range(nbTasks):
@@ -73,7 +73,10 @@ for i in range(nbTasks):
 for i in range(nbTasks):
     for j in range(nbResources):
         if 0 < demands[i][j]:
-            resources[j] += pulse(tasks[i], demands[i][j])
+            if resources[j] is None:
+                resources[j] = pulse(tasks[i], demands[i][j])
+            else:
+                resources[j] += pulse(tasks[i], demands[i][j])
 for j in range(nbResources):
     # mdl.add(resources[j]<=capacities[j])
     mdl.add(always_in(resources[j], INTERVAL_MIN, INTERVAL_MAX, 0, capacities[j]))

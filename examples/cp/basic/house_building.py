@@ -123,7 +123,7 @@ for house in HOUSES:
         v = (0, PLANNING[1])
         tasks[(house, task)] = interval_var(v, v, size=task.duration, name="house {} task {}".format(house, task))
     for task in SKILLS:
-        wtasks[(house, task)] = interval_var(present=False, name="house {} skill {}".format(house, task))
+        wtasks[(house, task)] = interval_var(optional=True, name="house {} skill {}".format(house, task))
 
 # Maximization objective of the model
 obj2 = sum([s.level * presence_of(wtasks[(h, s)]) for s in SKILLS for h in HOUSES])
@@ -173,3 +173,4 @@ if msol.is_solution():
     print("\nList of tasks in increasing start order:")
     for tsk in ltasks:
         print("From " + str(tsk[2]) + " to " + str(tsk[3]) + ", " + tsk[1].name + " in house " + str(tsk[0]))
+

@@ -181,16 +181,17 @@ class CutStockMasterModel(AbstractModel):
         AbstractModel.print_information(self)
 
     def print_solution(self, do_filter_zeros=True):
-        print("| Nb of cuts \t| Pattern  \t\t | Detail of pattern (nb of item1, nb of item2, ..., nb of item5) |")
-        print("| ----------------------------------------------------------------------------------------------- |")
+        print("| Nb of cuts | Pattern   | Detail of pattern (nb of item1, ..., nb of item5)  |")
+        print("| {} |".format("-" * 75))
         for p in self.patterns:
             if self.cut_vars[p].solution_value >= 1e-3:
                 pattern_detail = {b.id: self.pattern_item_filled[(a, b)] for (a, b) in self.pattern_item_filled if
                                   a == p}
                 print(
-                    "| {:g} \t \t \t| {}  \t | {}  \t\t\t\t\t\t\t\t  |".format(self.cut_vars[p].solution_value, p,
-                                                                               pattern_detail))
-        print("| ----------------------------------------------------------------------------------------------- |")
+                    "| {:<10g} | {!s:9} | {!s:50} |".format(self.cut_vars[p].solution_value,
+                                                            p,
+                                                            pattern_detail))
+        print("| {} |".format("-" * 75))
 
     def run(self, context=None):
         master_model = self

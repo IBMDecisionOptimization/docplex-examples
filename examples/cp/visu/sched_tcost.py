@@ -101,10 +101,10 @@ for i in range(nbTasks):
     tp.append(type)
     ai = interval_var(name='A' + str(i) + '_TP' + str(type), size=d)
     a.append(ai)
-    a1i = interval_var(name='A' + str(i) + '_M1_TP' + str(type), present=False)
+    a1i = interval_var(name='A' + str(i) + '_M1_TP' + str(type), optional=True)
     a1.append(a1i)
     id[a1i.get_name()] = i
-    a2i = interval_var(name='A' + str(i) + '_M2_TP' + str(type), present=False)
+    a2i = interval_var(name='A' + str(i) + '_M2_TP' + str(type), optional=True)
     a2.append(a2i)
     id[a2i.get_name()] = i
     mdl.add(alternative(ai, [a1i, a2i]))

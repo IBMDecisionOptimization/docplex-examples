@@ -148,7 +148,7 @@ mdl = CpoModel()
 tasks = {tasks_data[i]: interval_var(name=tasks_data[i].name) for i in range(nb_tasks)}
 
 modes = {modes_data[i]: interval_var(name=modes_data[i].name,
-                                    present=False,
+                                    optional=True,
                                     size=modes_data[i].duration) for i in range(len(modes_data))}
 
 renewables = [pulse(0, 0, 0) for j in range(nb_renewable)]
