@@ -1,0 +1,9 @@
+{
+    "provider": ["IBM"], 
+    "name":  "Decision Optimization Modeling for Python (DOcplex) samples" ,
+    "model": [ "CPLEX", "CPO" ],
+    "development": [ "Python" ],
+    "category": [ {"MODELING":["ADVANCED MODELING"]} ],
+    "industry": [ "Operational research" ],
+    "abstract": "These samples demonstrate how to use the DOcplex library to model and solve optimization problems."
+}
