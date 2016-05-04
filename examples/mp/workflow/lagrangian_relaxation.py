@@ -5,7 +5,12 @@
 # --------------------------------------------------------------------------
 
 from docplex.mp.model import Model
-from docplex.mp.context import Context
+
+try:
+    from itertools import izip
+except ImportError:
+    izip = zip
+
 
 B = [15, 15, 15]
 C = [
@@ -24,26 +29,27 @@ A = [
 ]
 
 
-def run_GAP_model(As, Bs, Cs, context=None):
+def run_GAP_model(As, Bs, Cs, context=None, **kwargs):
     mdl = Model('GAP per Wolsey -without- Lagrangian Relaxation', context=context)
     print("#As={}, #Bs={}, #Cs={}".format(len(As), len(Bs), len(Cs)))
     number_of_cs = len(C)
     # variables
-    x_vars = [mdl.binary_var_list(Cs[i], name=None) for i in range(number_of_cs)]
+    x_vars = [mdl.binary_var_list(c, name=None) for c in Cs]
 
     # constraints
-    for i in range(number_of_cs):
-        mdl.add_constraint(mdl.sum(x_vars[i]) <= 1)
-        # sum i: a_ij * x_ij <= b[j] for all j
-        for j in range(len(B)):
-            mdl.add_constraint(mdl.sum(x_vars[i][j] * As[i][j] for i in range(number_of_cs)) <= Bs[j])
+
+    for xv in x_vars:
+        mdl.add_constraint(mdl.sum(xv) <= 1)
+
+    for j, bs in enumerate(Bs):
+        mdl.add_constraint(mdl.sum(x_vars[ii][j] * As[ii][j] for ii in range(number_of_cs)) <= bs)
 
     # objective
     total_profit = mdl.sum(mdl.sum(c_ij * x_ij for c_ij, x_ij in zip(c_i, x_i))
                            for c_i, x_i in zip(Cs, x_vars))
     mdl.maximize(total_profit)
     mdl.print_information()
-    assert mdl.solve()
+    assert mdl.solve(**kwargs)
     obj = mdl.objective_value
     mdl.print_information()
     print("* GAP with no relaxation run OK, best objective is: {:g}".format(obj))
@@ -51,21 +57,20 @@ def run_GAP_model(As, Bs, Cs, context=None):
     return obj
 
 
-def run_GAP_model_with_Lagrangian_relaxation(As, Bs, Cs, max_iters=101, context=None):
+def run_GAP_model_with_Lagrangian_relaxation(As, Bs, Cs, max_iters=101, context=None, **kwargs):
     mdl = Model('GAP per Wolsey -with- Lagrangian Relaxation', context=context)
     print("#As={}, #Bs={}, #Cs={}".format(len(As), len(Bs), len(Cs)))
     c_range = range(len(Cs))
     # variables
-    x_vars = [mdl.binary_var_list(C[i], name=None) for i in c_range]
-    p_vars = [mdl.continuous_var(lb=0) for _ in c_range]  # new for relaxation
+    x_vars = [mdl.binary_var_list(c, name=None) for c in Cs]
+    p_vars = [mdl.continuous_var(lb=0) for _ in Cs]  # new for relaxation
 
-    # constraints
-    for i in c_range:
+    for (xv, pv) in izip(x_vars, p_vars):
         # was  mdl.add_constraint(mdl.sum(xVars[i]) <= 1)
-        mdl.add_constraint(mdl.sum(x_vars[i]) == 1 - p_vars[i])
-        # sum i: a_ij * x_ij <= b[j] for all j
-        for j in range(len(Bs)):
-            mdl.add_constraint(mdl.sum(x_vars[i][j] * As[i][j] for i in c_range) <= Bs[j])
+        mdl.add_constraint(mdl.sum(xv) == 1 - pv)
+
+    for j, bs in enumerate(Bs):
+        mdl.add_constraint(mdl.sum(x_vars[ii][j] * As[ii][j] for ii in c_range) <= bs)
 
     # lagrangian relaxation loop
     eps = 1e-6
@@ -82,7 +87,7 @@ def run_GAP_model_with_Lagrangian_relaxation(As, Bs, Cs, max_iters=101, context=
         # rebuilt at each loop iteration
         total_penalty = mdl.sum(p_vars[i] * multipliers[i] for i in c_range)
         mdl.maximize(total_profit + total_penalty)
-        ok = mdl.solve()
+        ok = mdl.solve(**kwargs)
         if not ok:
             print("*** solve fails, stopping at iteration: %d" % loop_count)
             break
@@ -117,7 +122,7 @@ def run_default_GAP_model_with_lagrangian_relaxation(context):
 
 
 if __name__ == '__main__':
-    """DOcloud credentials can be specified with url and api_key in the code block below.
+    """DOcplexcloud credentials can be specified with url and api_key in the code block below.
 
     Alternatively, Context.make_default_context() searches the PYTHONPATH for
     the following files:
@@ -132,16 +137,10 @@ if __name__ == '__main__':
        context.solver.docloud.url = "https://docloud.service.com/job_manager/rest/v1"
        context.solver.docloud.key = "example api_key"
     """
-    url = None  # put yur url here
-    api_key = None  # put yur api key here
-    ctx = Context.make_default_context(url=url, key=api_key)
+    url = None  # put your url here
+    key = None  # put your api key here
 
-    from docplex.mp.environment import Environment
-
-    env = Environment()
-    env.print_information()
-
-    gap_best_obj = run_GAP_model(A, B, C, context=ctx)
-    assert (46 == gap_best_obj)
-    relaxed_best = run_GAP_model_with_Lagrangian_relaxation(A, B, C, context=ctx)
-    assert (46 == relaxed_best)
+    # Run the model. If a key has been specified above, the model will run on
+    # IBM Decision Optimization on cloud.
+    gap_best_obj = run_GAP_model(A, B, C, url=url, key=key)
+    relaxed_best = run_GAP_model_with_Lagrangian_relaxation(A, B, C, url=url, key=key)

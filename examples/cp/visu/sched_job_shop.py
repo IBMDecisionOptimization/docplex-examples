@@ -25,7 +25,7 @@ import _utils_visu as visu
 # Reading instance file
 ##############################################################################
 
-filename = os.path.dirname(__file__) + "/data/jobshop_ft06.data"
+filename = os.path.dirname(os.path.abspath(__file__)) + "/data/jobshop_ft06.data"
 
 data = []
 with open(filename, "r") as file:

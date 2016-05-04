@@ -49,5 +49,12 @@ if msol:
     for v in x:
         stdout.write(" " + str(msol[v]))
     stdout.write("\n")
+    # Draw chess board
+    for l in range(NB_QUEEN):
+        qx = msol[x[l]]
+        for c in range(NB_QUEEN):
+            stdout.write(" ")
+            stdout.write("Q" if c == qx else ".")
+        stdout.write("\n")
 else:
     stdout.write("Solve status: " + msol.get_solve_status() + "\n")

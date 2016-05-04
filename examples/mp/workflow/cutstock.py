@@ -100,8 +100,8 @@ class FirstPatternGeneratorModel(CuttingStockPatternGeneratorModel):
 class CutStockMasterModel(AbstractModel):
     """ The cutting stock master model. """
 
-    def __init__(self, context=None, **kwargs):
-        AbstractModel.__init__(self, 'Cutting Stock Master', context=context, **kwargs)
+    def __init__(self, **kwargs):
+        AbstractModel.__init__(self, 'Cutting Stock Master', **kwargs)
         self.items = []
         self.patterns = []
         self.pattern_item_filled = {}
@@ -147,9 +147,7 @@ class CutStockMasterModel(AbstractModel):
         new_pattern = TPattern(new_pattern_id, 1)
         self.patterns.append(new_pattern)
         self.max_pattern_id = new_pattern_id
-        for i in range(len(item_usages)):
-            used = item_usages[i]
-            item = self.items[i]
+        for used, item in zip(item_usages, self.items):
             self.pattern_item_filled[new_pattern, item] = used
 
     def setup_variables(self):
@@ -193,7 +191,7 @@ class CutStockMasterModel(AbstractModel):
                                                             pattern_detail))
         print("| {} |".format("-" * 75))
 
-    def run(self, context=None):
+    def run(self, **kwargs):
         master_model = self
         master_model.ensure_setup()
         gen_model = CuttingStockPatternGeneratorModel(master_items=self.items,
@@ -212,7 +210,7 @@ class CutStockMasterModel(AbstractModel):
             print('\n#items={},#patterns={}'.format(len(self.items), len(self.patterns)))
             if loop_count > 0:
                 self.refresh_model()
-            status = master_model.solve()
+            status = master_model.solve(**kwargs)
             loop_count += 1
             best = curr
             if not status:
@@ -225,7 +223,7 @@ class CutStockMasterModel(AbstractModel):
                 duals = self.get_fill_dual_values()
                 print('{0}> moving duals from master to sub model: {1!s}'.format(loop_count, duals))
                 gen_model.update_duals(duals)
-                status = gen_model.solve()
+                status = gen_model.solve(**kwargs)
                 if not status:
                     print('{}> slave model fails, stop'.format(loop_count))
                     break
@@ -259,12 +257,12 @@ class CutStockMasterModel(AbstractModel):
 
 class DefaultCutStockMasterModel(CutStockMasterModel):
     def __init__(self, context=None, **kwargs):
-        CutStockMasterModel.__init__(self, context=context, **kwargs)
+        CutStockMasterModel.__init__(self, **kwargs)
         self.load_data(DEFAULT_ITEMS, DEFAULT_PATTERNS, DEFAULT_PATTERN_ITEM_FILLED, DEFAULT_ROLL_WIDTH)
 
 
 if __name__ == '__main__':
-    """DOcloud credentials can be specified with url and api_key in the code block below.
+    """DOcplexcloud credentials can be specified with url and api_key in the code block below.
 
     Alternatively, Context.make_default_context() searches the PYTHONPATH for
     the following files:
@@ -280,16 +278,12 @@ if __name__ == '__main__':
        context.solver.docloud.key = "example api_key"
     """
     url = None
-    api_key = None
-    ctx = Context.make_default_context(url=url, key=api_key)
+    key = None
 
-    from docplex.mp.environment import Environment
-
-    env = Environment()
-    env.print_information()
-
-    cutstock_model = DefaultCutStockMasterModel(context=ctx)
-    ok = cutstock_model.run(ctx)
-    assert ok
-    assert cutstock_model.best_cost == 46.25
-    cutstock_model.print_solution()
+    cutstock_model = DefaultCutStockMasterModel()
+    
+    # Solve the model. If a key has been specified above, the solve
+    # will use IBM Decision Optimization on cloud.
+    ok = cutstock_model.run(url=url, key=key)
+    if ok:
+        cutstock_model.print_solution()

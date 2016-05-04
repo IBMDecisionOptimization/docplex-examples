@@ -29,7 +29,7 @@ from docplex.cp.model import *
 # Reading instance file
 ##############################################################################
 
-filename = os.path.dirname(__file__) + "/data/rcpspmm_default.data"
+filename = os.path.dirname(os.path.abspath(__file__)) + "/data/rcpspmm_default.data"
 
 data = []
 with open(filename, "r") as file:

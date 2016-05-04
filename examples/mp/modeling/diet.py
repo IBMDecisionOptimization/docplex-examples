@@ -11,7 +11,6 @@
 from collections import namedtuple
 
 from docplex.mp.model import Model
-from docplex.mp.context import Context
 
 FOODS = [
     ("Roasted Chicken", 0.84, 0, 10),
@@ -79,7 +78,7 @@ def build_diet_model(context=None):
 
 
 if __name__ == '__main__':
-    """DOcloud credentials can be specified with url and api_key in the code block below.
+    """DOcplexcloud credentials can be specified with url and api_key in the code block below.
 
     Alternatively, Context.make_default_context() searches the PYTHONPATH for
     the following files:
@@ -96,17 +95,12 @@ if __name__ == '__main__':
     """
     url = None
     key = None
-    ctx = Context.make_default_context(url=url, key=key)
-    ctx.solver.docloud.print_information()
 
-    from docplex.mp.environment import Environment
+    mdl = build_diet_model()
 
-    env = Environment()
-    env.print_information()
-
-    mdl = build_diet_model(ctx)
-
-    if not mdl.solve():
+    # Solve the model. If a key has been specified above, the solve
+    # will use IBM Decision Optimization on cloud.
+    if not mdl.solve(url=url, key=key):
         print("*** Problem has no solution")
     else:
         mdl.float_precision = 3

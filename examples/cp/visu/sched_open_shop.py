@@ -29,7 +29,7 @@ import _utils_visu as visu
 # Reading instance file
 ##############################################################################
 
-filename = os.path.dirname(__file__) + "/data/openshop_default.data"
+filename = os.path.dirname(os.path.abspath(__file__)) + "/data/openshop_default.data"
 
 data = []
 with open(filename, "r") as file:

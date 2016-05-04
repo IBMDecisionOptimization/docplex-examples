@@ -41,7 +41,7 @@ mdl.add(Germany != Netherlands)
 
 # Solve model
 print("\nSolving model....")
-# You can set here custom DOcloud URL and key if not done in docloud_config.py
+# You can set here custom DOcplexcloud URL and key if not done in docloud_config.py
 msol = mdl.solve(url="default", key="default")
 
 if msol:

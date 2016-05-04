@@ -9,7 +9,7 @@ from collections import namedtuple
 from docplex.mp.model import Model
 from docplex.mp.context import Context
 
-nbs = (8, 1, 1, 16)
+nbs = (8, 1, 1)
 
 team_div1 = {"Baltimore Ravens", "Cincinnati Bengals", "Cleveland Browns",
              "Pittsburgh Steelers", "Houston Texans", "Indianapolis Colts",
@@ -32,9 +32,7 @@ def build_sports(context=None):
     print("* building sport scheduling model instance")
     mdl = Model('sportSchedCPLEX', context=context)
 
-    nb_teams_in_division = nbs[0]
-    nb_intra_divisional = nbs[1]
-    nb_inter_divisional = nbs[2]
+    nb_teams_in_division, nb_intra_divisional, nb_inter_divisional = nbs
     assert len(team_div1) == len(team_div2)
     mdl.teams = list(team_div1 | team_div2)
     # team index ranges from 1 to 2N
@@ -95,10 +93,10 @@ def build_sports(context=None):
     return mdl
 
 
-def solve_sports(context=None):
-    mdl = build_sports(context=context)
+def solve_sports(**kwargs):
+    mdl = build_sports()
     mdl.print_information()
-    mdl.solve()
+    mdl.solve(**kwargs)
     mdl.report()
     TSolution = namedtuple("TSolution", ["week", "is_divisional", "team1", "team2"])
 
@@ -121,7 +119,7 @@ def solve_sports(context=None):
 
 
 if __name__ == '__main__':
-    """DOcloud credentials can be specified with url and api_key in the code block below.
+    """DOcplexcloud credentials can be specified with url and api_key in the code block below.
 
     Alternatively, Context.make_default_context() searches the PYTHONPATH for
     the following files:
@@ -138,12 +136,7 @@ if __name__ == '__main__':
     """
     url = None
     key = None
-    ctx = Context.make_default_context(url=url, key=key)
-    ctx.solver.docloud.print_information()
-
-    from docplex.mp.environment import Environment
-
-    env = Environment()
-    env.print_information()
-
-    solve_sports(context=ctx)
+    
+    # Solve the model. If a key has been specified above, the solve
+    # will use IBM Decision Optimization on cloud.
+    solve_sports(url=url, key=key)

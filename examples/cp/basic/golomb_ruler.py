@@ -21,7 +21,7 @@ from docplex.cp.model import *
 from sys import stdout
 
 # Set model parameters
-ORDER = 8                     # Number of marks
+ORDER = 8                      # Number of marks
 MAX_LENGTH = (ORDER - 1) ** 2  # Max rule length
 
 # Create model

@@ -127,7 +127,6 @@ def conditional(c, t, e):
 ## Create model
 ##############################################################################
 
-
 # Create CPO model
 mdl = CpoModel()
 
@@ -177,7 +176,6 @@ for l in range(SIZE):
     for c in range(SIZE):
         lvars = [color[l2][c2] for l2, c2 in get_neighbors(l, c)]
         mdl.add(sum(lvars) < len(lvars))
-
 
 # At least cell 0,0 or cell 0,1 is blank.
 # Build table of distance to one of these cells

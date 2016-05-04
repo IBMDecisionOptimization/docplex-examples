@@ -14,7 +14,6 @@ The variables for this problem are the inside and outside production for each pr
 """
 
 from docplex.mp.model import Model
-from docplex.mp.context import Context
 
 
 def build_production_problem(products, resources, consumptions, context=None):
@@ -44,11 +43,11 @@ def build_production_problem(products, resources, consumptions, context=None):
     return mdl
 
 
-def solve_production_problem(products, resources, consumptions, context=None):
-    mdl = build_production_problem(products, resources, consumptions, context)
+def solve_production_problem(products, resources, consumptions, **kwargs):
+    mdl = build_production_problem(products, resources, consumptions)
     # --- solve ---
     mdl.print_information()
-    if not mdl.solve():
+    if not mdl.solve(**kwargs):
         print("Problem has no solution")
         return -1
 
@@ -81,7 +80,7 @@ CONSUMPTIONS = {("kluski", "flour"): 0.5,
                 ("fettucine", "eggs"): 0.6}
 
 if __name__ == '__main__':
-    """DOcloud credentials can be specified with url and api_key in the code block below.
+    """DOcplexcloud credentials can be specified with url and api_key in the code block below.
 
     Alternatively, Context.make_default_context() searches the PYTHONPATH for
     the following files:
@@ -98,10 +97,7 @@ if __name__ == '__main__':
     """
     url = None
     key = None
-    ctx = Context.make_default_context(url=url, key=key)
-    ctx.solver.docloud.print_information()
 
-    EXPECTED_COST = 372
-    print("* Running production model as a function")
-    fobj = solve_production_problem(PRODUCTS, RESOURCES, CONSUMPTIONS, context=ctx)
-    assert fobj == EXPECTED_COST
+    # Solve the model. If a key has been specified above, the solve
+    # will use IBM Decision Optimization on cloud.
+    solve_production_problem(PRODUCTS, RESOURCES, CONSUMPTIONS, url=url, key=key)

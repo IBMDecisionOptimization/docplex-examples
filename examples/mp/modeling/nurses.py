@@ -7,9 +7,9 @@
 from collections import namedtuple
 
 from docplex.mp.model import Model
-from docplex.mp.context import Context
 
-# utility to conevrt a weekday string to an index in 0..6
+
+# utility to convert a weekday string to an index in 0..6
 _all_days = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]
 
 
@@ -81,8 +81,8 @@ class ShiftActivity(object):
             return other_shift.end_time > self.start_time and other_shift.start_time < self.end_time
 
 
-def solve(model):
-    sol = model.solve(log_output=True)
+def solve(model, **kwargs):
+    sol = model.solve(log_output=True, **kwargs)
     if sol is not None:
         print("solution for a cost of {}".format(model.objective_value))
         print_information(model)
@@ -131,14 +131,14 @@ def setup_variables(model):
     all_nurses, all_shifts = model.nurses, model.shifts
     # one binary variable for each pair (nurse, shift) equal to 1 iff nurse n is assigned to shift s
     model.nurse_assignment_vars = model.binary_var_matrix(all_nurses, all_shifts, 'NurseAssigned')
-    # for each nurse, allocate one variable for worktime
+    # for each nurse, allocate one variable for work time
     model.nurse_work_time_vars = model.continuous_var_dict(all_nurses, lb=0, name='NurseWorkTime')
     # and two variables for over_average and under-average work time
     model.nurse_over_average_time_vars = model.continuous_var_dict(all_nurses, lb=0,
                                                                    name='NurseOverAverageWorkTime')
     model.nurse_under_average_time_vars = model.continuous_var_dict(all_nurses, lb=0,
                                                                     name='NurseUnderAverageWorkTime')
-    # finally the global average wotk time
+    # finally the global average work time
     model.average_nurse_work_time = model.continuous_var(lb=0, name='AverageWorkTime')
 
 
@@ -494,14 +494,8 @@ def build(context=None, **kwargs):
     return mdl
 
 
-def run(context=None):
-    mdl = build(context=context)
-    status = solve(mdl)
-    return status
-
-
 if __name__ == '__main__':
-    """DOcloud credentials can be specified with url and api_key in the code block below.
+    """DOcplexcloud credentials can be specified with url and api_key in the code block below.
 
     Alternatively, Context.make_default_context() searches the PYTHONPATH for
     the following files:
@@ -518,11 +512,10 @@ if __name__ == '__main__':
     """
     url = None
     key = None
-    ctx = Context.make_default_context(url=url, key=key)
-    ctx.solver.docloud.print_information()
 
-    from docplex.mp.environment import Environment
+    # Build model
+    model = build()
 
-    env = Environment()
-    env.print_information()
-    run(ctx)
+    # Solve the model. If a key has been specified above, the solve
+    # will use IBM Decision Optimization on cloud.
+    status = solve(model, url=url, key=key)

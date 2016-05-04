@@ -34,7 +34,6 @@ class BuildingTask(object):
         self.name = name
         self.duration = duration
 
-
 # List of tasks to be executed for each house
 MASONRY = BuildingTask('masonry', 35)
 CARPENTRY = BuildingTask('carpentry', 15)

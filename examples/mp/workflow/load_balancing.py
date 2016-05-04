@@ -10,7 +10,6 @@ from collections import namedtuple
 
 from docplex.mp.model import AbstractModel
 from docplex.mp.utils import is_int
-from docplex.mp.context import Context
 
 
 class TUser(namedtuple("TUser", ["id", "running", "sleeping", "current_server"])):
@@ -117,7 +116,7 @@ class LoadBalancingModel(AbstractModel):
         # Set objective function
         mdl.minimize(self.number_of_active_servers)
 
-    def run(self, context=None):
+    def run(self, **kwargs):
         mdl = self
         mdl.ensure_setup()
         mdl.print_information()
@@ -125,7 +124,7 @@ class LoadBalancingModel(AbstractModel):
         ordered_kpi_keywords = ["servers", "migrations", "sleeping"]
         ordered_goals = [mdl.kpi_by_name(k) for k in ordered_kpi_keywords]
 
-        return mdl.solve_lexicographic(ordered_goals)
+        return mdl.solve_lexicographic(ordered_goals, **kwargs)
 
     def print_solution(self, do_filter_zeros=True):
         mdl = self
@@ -236,7 +235,7 @@ class DefaultLoadBalancingModel(LoadBalancingModel):
 
 
 if __name__ == '__main__':
-    """DOcloud credentials can be specified with url and api_key in the code block below.
+    """DOcplexcloud credentials can be specified with url and api_key in the code block below.
 
     Alternatively, Context.make_default_context() searches the PYTHONPATH for
     the following files:
@@ -252,20 +251,13 @@ if __name__ == '__main__':
        context.solver.docloud.key = "example api_key"
     """
     url = None  # put your url here
-    api_key = None  # put your api key here
-    ctx = Context.make_default_context(url=url, key=api_key)
+    key = None  # put your api key here
 
-    from docplex.mp.environment import Environment
 
-    env = Environment()
-    env.print_information()
+    lbm = DefaultLoadBalancingModel()
 
-    lbm = DefaultLoadBalancingModel(context=ctx)
-
-    ok = lbm.run()
+    # Run the model. If a key has been specified above, the model will run on
+    # IBM Decision Optimization on cloud.
+    ok = lbm.run(url=url, key=key)
     assert ok
     lbm.print_solution()
-
-    import math
-
-    assert math.fabs(82.0 - lbm.objective_value) <= 8e-3
