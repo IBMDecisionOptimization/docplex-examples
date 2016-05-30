@@ -9,7 +9,6 @@
 from collections import namedtuple
 
 from docplex.mp.model import AbstractModel
-from docplex.mp.utils import is_int
 
 
 class TUser(namedtuple("TUser", ["id", "running", "sleeping", "current_server"])):
@@ -35,18 +34,10 @@ class LoadBalancingModel(AbstractModel):
         self.number_of_migrations = None
         self.max_sleeping_workload = None
 
-    def load_data(self, *args):
-        self._check_data_args(args, 2)
-        self.servers = args[0]
-        self.users = [TUser(*user_row) for user_row in args[1]]
-
-        self.max_processes_per_server = DEFAULT_MAX_PROCESSES_PER_SERVER
-        if len(args) >= 3:
-            arg2 = args[2]
-            if is_int(arg2):
-                self.max_processes_per_server = arg2
-            else:
-                print('* unexpected max process/server arg, not an int: %s'.format(str(arg2)))
+    def load_data(self, servers, users, max_process_per_server=DEFAULT_MAX_PROCESSES_PER_SERVER):
+        self.servers = servers
+        self.users = [TUser(*user_row) for user_row in users]
+        self.max_processes_per_server = max_process_per_server
         return self.is_valid()
 
     def clear(self):
@@ -80,9 +71,9 @@ class LoadBalancingModel(AbstractModel):
         all_users = self.users
 
         max_proc_per_server = self.max_processes_per_server
-        for s in all_servers:
-            mdl.add_constraint(
-                mdl.sum(self.assign_user_to_server_vars[u, s] * u.running for u in all_users) <= max_proc_per_server)
+
+        mdl.add_constraints(mdl.sum(self.assign_user_to_server_vars[u, s] * u.running for u in all_users) <= max_proc_per_server
+                            for s in all_servers)
 
         # each assignment var <u, s>  is <= active_server(s)
         for s in all_servers:
@@ -126,7 +117,7 @@ class LoadBalancingModel(AbstractModel):
 
         return mdl.solve_lexicographic(ordered_goals, **kwargs)
 
-    def print_solution(self, do_filter_zeros=True):
+    def print_solution(self):
         mdl = self
         active_servers = sorted([s for s in mdl.servers if mdl.active_var_by_server[s].solution_value == 1])
         print("Active Servers: {}".format(active_servers))
@@ -143,7 +134,7 @@ class LoadBalancingModel(AbstractModel):
 SERVERS = ["server002", "server003", "server001", "server006", "server007", "server004", "server005"]
 
 USERS = [("user013", 2, 1, "server002"),
-         ("user014)", 0, 2, "server002"),
+         ("user014", 0, 2, "server002"),
          ("user015", 0, 4, "server002"),
          ("user016", 1, 4, "server002"),
          ("user017", 0, 3, "server002"),

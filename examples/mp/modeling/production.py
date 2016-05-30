@@ -29,12 +29,10 @@ def build_production_problem(products, resources, consumptions, context=None):
 
     # --- constraints ---
     # demand satisfaction
-    for prod in products:
-        mdl.add_constraint(mdl.inside_vars[prod] + mdl.outside_vars[prod] >= prod[1])
+    mdl.add_constraints(mdl.inside_vars[prod] + mdl.outside_vars[prod] >= prod[1] for prod in products)
 
     # --- resource capacity ---
-    for res in resources:
-        mdl.add_constraint(mdl.sum([mdl.inside_vars[p] * consumptions[p[0], res[0]] for p in products]) <= res[1])
+    mdl.add_constraints(mdl.sum([mdl.inside_vars[p] * consumptions[p[0], res[0]] for p in products]) <= res[1] for res in resources)
 
     # --- objective ---
     mdl.total_inside_cost = mdl.sum(mdl.inside_vars[p] * p[2] for p in products)

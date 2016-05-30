@@ -123,22 +123,16 @@ class CutStockMasterModel(AbstractModel):
         self.item_fill_cts = []
         self.cut_vars = {}
 
-    def load_data(self, *args):
-        self._check_data_args(args, 3)
-        item_table = args[0]
-        pattern_table = args[1]
-        fill_table = args[2]
-
+    def load_data(self, item_table, pattern_table, fill_table, roll_width):
         self.items = [TItem.make(it_row) for it_row in item_table]
         self.items_by_id = {it.id: it for it in self.items}
         self.patterns = [TPattern(*pattern_row) for pattern_row in pattern_table]
         self.patterns_by_id = {pat.id: pat for pat in self.patterns}
         self.max_pattern_id = max(pt.id for pt in self.patterns)
 
-        # build the dictionary storing how much each pattern fills each item.
+        # build a dictionary storing how much each pattern fills each item.
         self.pattern_item_filled = {(self.patterns_by_id[p], self.items_by_id[i]): f for (p, i, f) in fill_table}
-
-        self.roll_width = args[3]
+        self.roll_width = roll_width
 
     def add_new_pattern(self, item_usages):
         """ makes a new pattern from a sequence of usages (one per item)"""
@@ -178,7 +172,7 @@ class CutStockMasterModel(AbstractModel):
         print('#patterns={}'.format(len(self.patterns)))
         AbstractModel.print_information(self)
 
-    def print_solution(self, do_filter_zeros=True):
+    def print_solution(self):
         print("| Nb of cuts | Pattern   | Detail of pattern (nb of item1, ..., nb of item5)  |")
         print("| {} |".format("-" * 75))
         for p in self.patterns:

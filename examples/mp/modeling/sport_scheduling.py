@@ -74,10 +74,9 @@ def build_sports(context=None):
             mdl.add_constraint(mdl.sum(max_teams_in_division) == 1,
                                  "plays_exactly_once_%d_%s" % (w, t))
 
-        # Games between the same teams cannot be on successive weeks.
-        for m in matches:
-            if w < nb_weeks:
-                mdl.add_constraint(plays[m, w] + plays[m, w + 1] <= 1)
+    # Games between the same teams cannot be on successive weeks.
+    mdl.add_constraints(plays[m, w] + plays[m, w + 1] <= 1
+                        for w in weeks for m in matches if w < nb_weeks)
 
     # Some intradivisional games should be in the first half.
     for t in team_range:

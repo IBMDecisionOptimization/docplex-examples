@@ -56,16 +56,9 @@ mdl.add(end_before_start(painting,  moving))
 # Solving
 ##############################################################################
 
-# Trace model
-if False:
-    from CpoCompiler import *
-    cplr = CpoCompiler(mdl)
-    cplr.set_source_location(False)
-    cplr.print_model()
-
 # Solve model
 print("Solving model....")
-msol = mdl.solve()
+msol = mdl.solve(TimeLimit=100)
 print("Solution: ")
 msol.print_solution()
 

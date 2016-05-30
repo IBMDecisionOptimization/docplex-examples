@@ -37,12 +37,11 @@ def run_GAP_model(As, Bs, Cs, context=None, **kwargs):
     x_vars = [mdl.binary_var_list(c, name=None) for c in Cs]
 
     # constraints
+    mdl.add_constraints(mdl.sum(xv) <= 1
+                        for xv in x_vars)
 
-    for xv in x_vars:
-        mdl.add_constraint(mdl.sum(xv) <= 1)
-
-    for j, bs in enumerate(Bs):
-        mdl.add_constraint(mdl.sum(x_vars[ii][j] * As[ii][j] for ii in range(number_of_cs)) <= bs)
+    mdl.add_constraints(mdl.sum(x_vars[ii][j] * As[ii][j] for ii in range(number_of_cs)) <= bs
+                       for j, bs in enumerate(Bs))
 
     # objective
     total_profit = mdl.sum(mdl.sum(c_ij * x_ij for c_ij, x_ij in zip(c_i, x_i))
@@ -65,12 +64,14 @@ def run_GAP_model_with_Lagrangian_relaxation(As, Bs, Cs, max_iters=101, context=
     x_vars = [mdl.binary_var_list(c, name=None) for c in Cs]
     p_vars = [mdl.continuous_var(lb=0) for _ in Cs]  # new for relaxation
 
-    for (xv, pv) in izip(x_vars, p_vars):
-        # was  mdl.add_constraint(mdl.sum(xVars[i]) <= 1)
-        mdl.add_constraint(mdl.sum(xv) == 1 - pv)
 
-    for j, bs in enumerate(Bs):
-        mdl.add_constraint(mdl.sum(x_vars[ii][j] * As[ii][j] for ii in c_range) <= bs)
+    # was  mdl.add_constraint(mdl.sum(xVars[i]) <= 1)
+    mdl.add_constraints(mdl.sum(xv) == 1 - pv
+                           for (xv, pv) in izip(x_vars, p_vars))
+
+
+    mdl.add_constraints(mdl.sum(x_vars[ii][j] * As[ii][j] for ii in c_range) <= bs
+                           for j, bs in enumerate(Bs))
 
     # lagrangian relaxation loop
     eps = 1e-6

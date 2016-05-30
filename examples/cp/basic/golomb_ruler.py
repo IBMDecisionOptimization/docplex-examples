@@ -27,7 +27,7 @@ MAX_LENGTH = (ORDER - 1) ** 2  # Max rule length
 # Create model
 mdl = CpoModel()
 
-# Create array of variables corresponding to position rule marks
+# Create array of variables corresponding to position ruler marks
 marks = integer_var_list(ORDER, 0, MAX_LENGTH, "M")
 
 # Create marks distances that should be all different

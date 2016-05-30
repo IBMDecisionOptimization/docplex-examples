@@ -42,7 +42,7 @@ mdl.add(Germany != Netherlands)
 # Solve model
 print("\nSolving model....")
 # You can set here custom DOcplexcloud URL and key if not done in docloud_config.py
-msol = mdl.solve(url="default", key="default")
+msol = mdl.solve(url="ENTER YOUR URL HERE", key="ENTER YOUR KEY HERE")
 
 if msol:
     print("Solution status: " + msol.get_solve_status())
