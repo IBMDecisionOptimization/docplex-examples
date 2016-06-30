@@ -7,7 +7,7 @@
 from collections import namedtuple
 
 from docplex.mp.model import Model
-from docplex.mp.context import Context
+from docplex.util.environment import get_environment
 
 nbs = (8, 1, 1)
 
@@ -92,11 +92,7 @@ def build_sports(context=None):
     return mdl
 
 
-def solve_sports(**kwargs):
-    mdl = build_sports()
-    mdl.print_information()
-    mdl.solve(**kwargs)
-    mdl.report()
+def print_sports_solution(mdl):
     TSolution = namedtuple("TSolution", ["week", "is_divisional", "team1", "team2"])
 
     # iterate with weeks first
@@ -114,7 +110,6 @@ def solve_sports(**kwargs):
             print("On week %d" % currweek)
 
         print("    {0:s}{1} will meet the {2}".format("*" if s.is_divisional else "", s.team1, s.team2))
-    return mdl.objective_value
 
 
 if __name__ == '__main__':
@@ -135,7 +130,17 @@ if __name__ == '__main__':
     """
     url = None
     key = None
-    
+
+    # Build the model
+    model = build_sports()
+    model.print_information()
     # Solve the model. If a key has been specified above, the solve
     # will use IBM Decision Optimization on cloud.
-    solve_sports(url=url, key=key)
+    if model.solve(url=url, key=key):
+        model.report()
+        print_sports_solution(model)
+        # Save the CPLEX solution as "solution.json" program output
+        with get_environment().get_output_stream("solution.json") as fp:
+            model.solution.export(fp, "json")
+    else:
+        print("Problem has no solution")

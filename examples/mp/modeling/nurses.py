@@ -7,6 +7,8 @@
 from collections import namedtuple
 
 from docplex.mp.model import Model
+from docplex.util.environment import get_environment
+
 
 
 # utility to convert a weekday string to an index in 0..6
@@ -243,12 +245,12 @@ def setup_constraints(model):
                 ctname = 'medium_ct_nurse_incompat_{0!s}_{1!s}_{2:d}'.format(nurse_id1, nurse_id2, c)
                 model.add_constraint(nurse_assigned[nurse1, s] + nurse_assigned[nurse2, s] <= 1, ctname)
 
-    model.total_number_of_assignments = model.sum(nurse_assigned[n,s] for n in all_nurses for s in all_shifts)
-    #model.total_salary_cost = model.sum(nurse_work_time[n] * n.pay_rate for n in all_nurses)
+    model.total_number_of_assignments = model.sum(nurse_assigned[n, s] for n in all_nurses for s in all_shifts)
     model.nurse_costs = [model.nurse_assignment_vars[n, s] * n.pay_rate * model.shift_activities[s].duration for n in
                          model.nurses
                          for s in model.shifts]
     model.total_salary_cost = model.sum(model.nurse_costs)
+
 
 def setup_objective(model):
     model.add_kpi(model.total_salary_cost, "Total salary cost")
@@ -518,4 +520,8 @@ if __name__ == '__main__':
 
     # Solve the model. If a key has been specified above, the solve
     # will use IBM Decision Optimization on cloud.
-    status = solve(model, url=url, key=key)
+    solve(model, url=url, key=key)
+
+    # Save the CPLEX solution as "solution.json" program output
+    with get_environment().get_output_stream("solution.json") as fp:
+        model.solution.export(fp, "json")

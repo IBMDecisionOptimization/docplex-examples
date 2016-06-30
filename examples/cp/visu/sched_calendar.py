@@ -10,9 +10,9 @@ painting, etc. must be scheduled. Some tasks must necessarily take
 place before others and these requirements are expressed through
 precedence constraints.
 
-There are two workers and each task requires a specific worker.  The
-worker has a calendar of days off that must be taken into account. The
-objective is to minimize the overall completion date.
+There are two workers and each task requires a specific worker.
+The worker has a calendar of days off that must be taken into account.
+The objective is to minimize the overall completion date.
 
 Please refer to documentation for appropriate setup of solving configuration.
 """
@@ -154,7 +154,7 @@ mdl.add(minimize(max(ends)))
 ##############################################################################
 
 # Trace model
-#  mdl.export_as_cpo()
+# mdl.export_as_cpo()
 
 # Solve model
 print("Solving model....")

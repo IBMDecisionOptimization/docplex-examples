@@ -7,7 +7,9 @@
 # Source: http://blog.yhathq.com/posts/how-yhat-does-cloud-balancing.html
 
 from collections import namedtuple
+import json
 
+from docplex.util.environment import get_environment
 from docplex.mp.model import AbstractModel
 
 
@@ -21,8 +23,8 @@ DEFAULT_MAX_PROCESSES_PER_SERVER = 50
 
 class LoadBalancingModel(AbstractModel):
 
-    def __init__(self, context=None, **kwargs):
-        AbstractModel.__init__(self, 'load_balancing', context=context, **kwargs)
+    def __init__(self, **kwargs):
+        AbstractModel.__init__(self, 'load_balancing', **kwargs)
         # raw data
         self.max_processes_per_server = DEFAULT_MAX_PROCESSES_PER_SERVER
         self.servers = []
@@ -117,7 +119,7 @@ class LoadBalancingModel(AbstractModel):
 
         return mdl.solve_lexicographic(ordered_goals, **kwargs)
 
-    def print_solution(self):
+    def report(self):
         mdl = self
         active_servers = sorted([s for s in mdl.servers if mdl.active_var_by_server[s].solution_value == 1])
         print("Active Servers: {}".format(active_servers))
@@ -129,6 +131,37 @@ class LoadBalancingModel(AbstractModel):
         for s in active_servers:
             sleeping = sum(self.assign_user_to_server_vars[u, s].solution_value * u.sleeping for u in self.users)
             print("Server: {} #sleeping={}".format(s, sleeping))
+
+    def save_solution_as_json(self, json_file):
+        """Saves the solution for this model as JSON.
+        
+        Note that this is not a CPLEX Solution file, as this is the result of post-processing a CPLEX solution
+        """
+        mdl = self
+        solution_dict = {}
+        # active server
+        active_servers = sorted([s for s in mdl.servers if mdl.active_var_by_server[s].solution_value == 1])
+        solution_dict["active servers"] = active_servers
+        
+        # sleeping processes by server
+        sleeping_processes = {}
+        for s in active_servers:
+            sleeping = sum(self.assign_user_to_server_vars[u, s].solution_value * u.sleeping for u in self.users)
+            sleeping_processes[s] = sleeping
+        solution_dict["sleeping processes by server"] = sleeping_processes
+        
+        # user assignment
+        user_assignment = []
+        for (u, s) in sorted(mdl.assign_user_to_server_vars):
+            if mdl.assign_user_to_server_vars[(u, s)].solution_value == 1:
+                n = {}
+                n['user'] = u.id
+                n['server'] = s
+                n['migration'] = "yes" if mdl._is_migration(u, s) else "no"
+                user_assignment.append(n)
+        solution_dict['user assignment'] = user_assignment
+        json_file.write(json.dumps(solution_dict, indent=3).encode('utf-8'))
+
 
 
 SERVERS = ["server002", "server003", "server001", "server006", "server007", "server004", "server005"]
@@ -249,6 +282,7 @@ if __name__ == '__main__':
 
     # Run the model. If a key has been specified above, the model will run on
     # IBM Decision Optimization on cloud.
-    ok = lbm.run(url=url, key=key)
-    assert ok
-    lbm.print_solution()
+    if lbm.run(url=url, key=key):
+        lbm.report()
+        with get_environment().get_output_stream("solution.json") as fp:
+            lbm.save_solution_as_json(fp)

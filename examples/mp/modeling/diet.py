@@ -11,6 +11,7 @@
 from collections import namedtuple
 
 from docplex.mp.model import Model
+from docplex.util.environment import get_environment
 
 FOODS = [
     ("Roasted Chicken", 0.84, 0, 10),
@@ -47,7 +48,7 @@ FOOD_NUTRIENTS = [
 ]
 
 
-def build_diet_model(context=None):
+def build_diet_model(**kwargs):
     # Create tuples with named fields for foods and nutrients
     Food = namedtuple("Food", ["name", "unit_cost", "qmin", "qmax"])
     food = [Food(*f) for f in FOODS]
@@ -59,7 +60,7 @@ def build_diet_model(context=None):
                       fn[1 + n] for fn in FOOD_NUTRIENTS for n in range(len(NUTRIENTS))}
 
     # Model
-    mdl = Model("diet", context=context)
+    mdl = Model("diet", **kwargs)
 
     # Decision variables, limited to be >= Food.qmin and <= Food.qmax
     qty = dict((f, mdl.continuous_var(f.qmin, f.qmax, f.name)) for f in food)
@@ -107,3 +108,7 @@ if __name__ == '__main__':
         print("* model solved as function:")
         mdl.print_solution()
         mdl.report_kpis()
+        # Save the CPLEX solution as "solution.json" program output
+        with get_environment().get_output_stream("solution.json") as fp:
+            mdl.solution.export(fp, "json")
+

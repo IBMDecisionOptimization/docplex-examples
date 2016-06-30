@@ -5,11 +5,11 @@
 # --------------------------------------------------------------------------
 
 from collections import namedtuple
+import json
 
+from docplex.util.environment import get_environment
 from docplex.mp.model import AbstractModel
 from docplex.mp.utils import is_iterable
-from docplex.mp.context import Context
-
 
 # ------------------------------
 
@@ -48,10 +48,8 @@ class TPattern(namedtuple("TPattern", ["id", "cost"])):
 class CuttingStockPatternGeneratorModel(AbstractModel):
     """ The cutting stock pattern-generation model."""
 
-    def __init__(self, master_items, roll_width, context=None, **kwargs):
-        AbstractModel.__init__(self, 'CuttingStock_PatternGeneratorModel',
-                               context=context,
-                               **kwargs)
+    def __init__(self, master_items, roll_width, **kwargs):
+        AbstractModel.__init__(self, 'CuttingStock_PatternGeneratorModel', **kwargs)
         self.items = master_items
         # default values
         self.duals = [1] * len(master_items)
@@ -185,13 +183,26 @@ class CutStockMasterModel(AbstractModel):
                                                             pattern_detail))
         print("| {} |".format("-" * 75))
 
+    def save_solution_as_json(self, file):
+        solution = []
+        for p in self.patterns:
+            if self.cut_vars[p].solution_value >= 1e-3:
+                pattern_detail = {b.id: self.pattern_item_filled[(a, b)] for (a, b) in self.pattern_item_filled if
+                                  a == p}
+                n = {}
+                n['pattern'] = str(p)
+                n['cuts']= "%g" % self.cut_vars[p].solution_value
+                n['details'] = pattern_detail
+                solution.append(n)
+        file.write(json.dumps(solution, indent=3).encode('utf-8'))
+
     def run(self, **kwargs):
         master_model = self
         master_model.ensure_setup()
         gen_model = CuttingStockPatternGeneratorModel(master_items=self.items,
                                                       roll_width=self.roll_width,
-                                                      context=self.context,
-                                                      output_level=self.output_level
+                                                      output_level=self.output_level,
+                                                      **kwargs
                                                       )
         gen_model.setup()
         rc_eps = 1e-6
@@ -250,7 +261,7 @@ class CutStockMasterModel(AbstractModel):
 
 
 class DefaultCutStockMasterModel(CutStockMasterModel):
-    def __init__(self, context=None, **kwargs):
+    def __init__(self, **kwargs):
         CutStockMasterModel.__init__(self, **kwargs)
         self.load_data(DEFAULT_ITEMS, DEFAULT_PATTERNS, DEFAULT_PATTERN_ITEM_FILLED, DEFAULT_ROLL_WIDTH)
 
@@ -278,6 +289,8 @@ if __name__ == '__main__':
     
     # Solve the model. If a key has been specified above, the solve
     # will use IBM Decision Optimization on cloud.
-    ok = cutstock_model.run(url=url, key=key)
-    if ok:
+    if cutstock_model.run(url=url, key=key):
         cutstock_model.print_solution()
+        # Save the solution as "solution.json" program output.
+        with get_environment().get_output_stream("solution.json") as fp:
+            cutstock_model.save_solution_as_json(fp)

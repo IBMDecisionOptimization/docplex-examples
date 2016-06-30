@@ -4,6 +4,9 @@
 # (c) Copyright IBM Corp. 2015, 2016
 # --------------------------------------------------------------------------
 
+import json
+
+from docplex.util.environment import get_environment
 from docplex.mp.model import Model
 
 try:
@@ -29,8 +32,8 @@ A = [
 ]
 
 
-def run_GAP_model(As, Bs, Cs, context=None, **kwargs):
-    mdl = Model('GAP per Wolsey -without- Lagrangian Relaxation', context=context)
+def run_GAP_model(As, Bs, Cs, **kwargs):
+    mdl = Model('GAP per Wolsey -without- Lagrangian Relaxation', **kwargs)
     print("#As={}, #Bs={}, #Cs={}".format(len(As), len(Bs), len(Cs)))
     number_of_cs = len(C)
     # variables
@@ -41,7 +44,7 @@ def run_GAP_model(As, Bs, Cs, context=None, **kwargs):
                         for xv in x_vars)
 
     mdl.add_constraints(mdl.sum(x_vars[ii][j] * As[ii][j] for ii in range(number_of_cs)) <= bs
-                       for j, bs in enumerate(Bs))
+                        for j, bs in enumerate(Bs))
 
     # objective
     total_profit = mdl.sum(mdl.sum(c_ij * x_ij for c_ij, x_ij in zip(c_i, x_i))
@@ -56,8 +59,8 @@ def run_GAP_model(As, Bs, Cs, context=None, **kwargs):
     return obj
 
 
-def run_GAP_model_with_Lagrangian_relaxation(As, Bs, Cs, max_iters=101, context=None, **kwargs):
-    mdl = Model('GAP per Wolsey -with- Lagrangian Relaxation', context=context)
+def run_GAP_model_with_Lagrangian_relaxation(As, Bs, Cs, max_iters=101, **kwargs):
+    mdl = Model('GAP per Wolsey -with- Lagrangian Relaxation', **kwargs)
     print("#As={}, #Bs={}, #Cs={}".format(len(As), len(Bs), len(Cs)))
     c_range = range(len(Cs))
     # variables
@@ -66,12 +69,11 @@ def run_GAP_model_with_Lagrangian_relaxation(As, Bs, Cs, max_iters=101, context=
 
 
     # was  mdl.add_constraint(mdl.sum(xVars[i]) <= 1)
-    mdl.add_constraints(mdl.sum(xv) == 1 - pv
-                           for (xv, pv) in izip(x_vars, p_vars))
+    mdl.add_constraints(mdl.sum(xv) == 1 - pv for (xv, pv) in izip(x_vars, p_vars))
 
 
     mdl.add_constraints(mdl.sum(x_vars[ii][j] * As[ii][j] for ii in c_range) <= bs
-                           for j, bs in enumerate(Bs))
+                        for j, bs in enumerate(Bs))
 
     # lagrangian relaxation loop
     eps = 1e-6
@@ -118,8 +120,8 @@ def run_GAP_model_with_Lagrangian_relaxation(As, Bs, Cs, max_iters=101, context=
     return best
 
 
-def run_default_GAP_model_with_lagrangian_relaxation(context):
-    return run_GAP_model_with_Lagrangian_relaxation(As=A, Bs=B, Cs=C, context=context)
+def run_default_GAP_model_with_lagrangian_relaxation(**kwargs):
+    return run_GAP_model_with_Lagrangian_relaxation(As=A, Bs=B, Cs=C, **kwargs)
 
 
 if __name__ == '__main__':
@@ -145,3 +147,6 @@ if __name__ == '__main__':
     # IBM Decision Optimization on cloud.
     gap_best_obj = run_GAP_model(A, B, C, url=url, key=key)
     relaxed_best = run_GAP_model_with_Lagrangian_relaxation(A, B, C, url=url, key=key)
+    # save the relaxed solution
+    with get_environment().get_output_stream("solution.json") as fp:
+        fp.write(json.dumps({"objectiveValue": relaxed_best}).encode('utf-8'))

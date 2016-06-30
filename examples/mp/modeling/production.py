@@ -14,6 +14,7 @@ The variables for this problem are the inside and outside production for each pr
 """
 
 from docplex.mp.model import Model
+from docplex.util.environment import get_environment
 
 
 def build_production_problem(products, resources, consumptions, context=None):
@@ -40,15 +41,7 @@ def build_production_problem(products, resources, consumptions, context=None):
     mdl.minimize(mdl.total_inside_cost + mdl.total_outside_cost)
     return mdl
 
-
-def solve_production_problem(products, resources, consumptions, **kwargs):
-    mdl = build_production_problem(products, resources, consumptions)
-    # --- solve ---
-    mdl.print_information()
-    if not mdl.solve(**kwargs):
-        print("Problem has no solution")
-        return -1
-
+def print_production_solution(mdl, products):
     obj = mdl.objective_value
     print("* Production model solved with objective: {:g}".format(obj))
     print("* Total inside cost=%g" % mdl.total_inside_cost.solution_value)
@@ -59,7 +52,6 @@ def solve_production_problem(products, resources, consumptions, **kwargs):
     for p in products:
         print("Outside production of {product}: {out_var}".format
               (product=p[0], out_var=mdl.outside_vars[p].solution_value))
-    return obj
 
 
 PRODUCTS = [("kluski", 100, 0.6, 0.8),
@@ -96,6 +88,16 @@ if __name__ == '__main__':
     url = None
     key = None
 
+    # Build the model
+    model = build_production_problem(PRODUCTS, RESOURCES, CONSUMPTIONS)
+    model.print_information()
     # Solve the model. If a key has been specified above, the solve
     # will use IBM Decision Optimization on cloud.
-    solve_production_problem(PRODUCTS, RESOURCES, CONSUMPTIONS, url=url, key=key)
+    if model.solve(url=url, key=key):
+        print_production_solution(model, PRODUCTS)
+        # Save the CPLEX solution as "solution.json" program output
+        with get_environment().get_output_stream("solution.json") as fp:
+            model.solution.export(fp, "json")
+    else:
+        print("Problem has no solution")
+

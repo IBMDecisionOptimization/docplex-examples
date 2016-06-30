@@ -26,6 +26,7 @@ except ImportError:
     LIBRARIES_PRESENT = False
 
 from docplex.cp.function import CpoFunction
+from docplex.cp.expression import CpoTransitionMatrix
 from docplex.cp.solution import *
 import docplex.cp.config as config
 
@@ -970,11 +971,11 @@ class _Visu(object):
 
 _visu = _Visu()
 
-"""
-    This section depends on CPO classes and defines the default display of some classes
-    like CpoSolution and CpoTransitionMatrix
-"""
 
+##############################################################################
+# This section depends on CPO classes and defines the default display of some
+# classes like CpoSolution and CpoTransitionMatrix
+##############################################################################
 
 def _canonical_interval(*args):
     """
@@ -1588,7 +1589,7 @@ def show(object=None, name=None, origin=None, horizon=None):
     """
     if config.context.visu_enabled:
         if object is not None:
-            if isinstance(object, CpoModelSolution):
+            if isinstance(object, CpoSolveResult):
                 # use default display for an instance of CPOSolution
                 _define_solution(object, name)
             elif isinstance(object, CpoTransitionMatrix):
