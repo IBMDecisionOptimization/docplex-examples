@@ -127,7 +127,7 @@ mdl.add(minimize(total_loss))
 
 # Solve model
 print("Solving model....")
-msol = mdl.solve(FailLimit=100000)
+msol = mdl.solve(FailLimit=100000, TimeLimit=10)
 
 # Print solution
 if msol:

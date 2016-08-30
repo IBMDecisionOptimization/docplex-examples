@@ -76,5 +76,5 @@ mdl.add(minimize(obj))
 
 # Solve model
 print("\nSolving model....")
-msol = mdl.solve()
+msol = mdl.solve(TimeLimit=10)
 msol.print_solution()

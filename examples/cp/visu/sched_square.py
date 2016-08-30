@@ -15,7 +15,7 @@ Requires installation of numpy (installer) and following python packages:
 Please refer to documentation for appropriate setup of solving configuration.
 """
 
-import _utils_visu as visu
+import docplex.cp.utils_visu as visu
 from docplex.cp.model import *
 
 

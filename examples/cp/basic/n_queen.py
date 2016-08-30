@@ -41,7 +41,7 @@ mdl.add(all_diff(x[i] - i for i in range(NB_QUEEN)))
     
 # Solve model
 print("Solving model....")
-msol = mdl.solve()
+msol = mdl.solve(TimeLimit=10)
 
 # Print solution
 if msol:

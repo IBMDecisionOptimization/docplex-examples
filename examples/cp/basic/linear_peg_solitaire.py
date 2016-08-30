@@ -115,7 +115,7 @@ mdl.add(expr)
 # Solve model
 #mdl.export_as_cpo(srcloc=False)
 print("Solving model....")
-msol = mdl.solve(TimeLimit=100)
+msol = mdl.solve(TimeLimit=50)
 
 # Print solution
 if msol:

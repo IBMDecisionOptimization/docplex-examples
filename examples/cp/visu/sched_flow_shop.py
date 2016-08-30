@@ -15,7 +15,7 @@ Please refer to documentation for appropriate setup of solving configuration.
 
 from docplex.cp.model import *
 import os
-import _utils_visu as visu
+import docplex.cp.utils_visu as visu
 
 ##############################################################################
 # Reading instance file
@@ -60,7 +60,7 @@ mdl.add(minimize(max([end_of(ITVS[i][nbMchs - 1]) for i in range(nbJobs)])))
 
 # Solve model
 print("Solving model....")
-msol = mdl.solve(FailLimit=10000)
+msol = mdl.solve(FailLimit=10000, TimeLimit=10)
 print("Solution: ")
 msol.print_solution()
 

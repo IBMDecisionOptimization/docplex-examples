@@ -18,7 +18,7 @@ Please refer to documentation for appropriate setup of solving configuration.
 """
 
 from docplex.cp.model import *
-import _utils_visu as visu
+import docplex.cp.utils_visu as visu
 
 
 ##############################################################################
@@ -158,7 +158,7 @@ mdl.add(minimize(max(ends)))
 
 # Solve model
 print("Solving model....")
-msol = mdl.solve()
+msol = mdl.solve(TimeLimit=10)
 print("Solution: ")
 msol.print_solution()
 

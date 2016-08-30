@@ -219,7 +219,7 @@ mdl.add(minimize(nbbulbs))
 
 # Solve model
 print("\nSolving model....")
-msol = mdl.solve()
+msol = mdl.solve(TimeLimit=10)
 
 # Print solution
 stdout.write("Initial problem:\n")

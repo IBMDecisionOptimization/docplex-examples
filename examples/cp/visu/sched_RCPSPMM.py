@@ -22,7 +22,7 @@ precedence and resource constraints.
 Please refer to documentation for appropriate setup of solving configuration.
 """
 
-import _utils_visu as visu
+import docplex.cp.utils_visu as visu
 from docplex.cp.model import *
 
 ##############################################################################
@@ -190,7 +190,7 @@ mdl.add(minimize(max([end_of(tasks[t]) for t in tasks_data])))
 
 # Solve model
 print("Solving model....")
-msol = mdl.solve(FailLimit=30000)
+msol = mdl.solve(FailLimit=30000, TimeLimit=10)
 print("Solution: ")
 msol.print_solution()
 

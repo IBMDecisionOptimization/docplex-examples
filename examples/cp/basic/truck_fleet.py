@@ -134,7 +134,7 @@ mdl.add(minimize_static_lex([obj1, obj2]))
 
 # Solve model
 print("\nSolving model....")
-msol = mdl.solve(TimeLimit=30, LogPeriod=3000)
+msol = mdl.solve(TimeLimit=20, LogPeriod=3000)
 
 # Print solution
 if msol.is_solution():

@@ -20,7 +20,7 @@ the workers assigned to the tasks while respecting the deadlines.
 Please refer to documentation for appropriate setup of solving configuration.
 """
 
-import _utils_visu as visu
+import docplex.cp.utils_visu as visu
 from docplex.cp.model import *
 
 
@@ -135,7 +135,7 @@ mdl.add(maximize(total_skill))
 
 # Solve model
 print("Solving model....")
-msol = mdl.solve(FailLimit=10000)
+msol = mdl.solve(FailLimit=10000, TimeLimit=10)
 print("Solution: ")
 msol.print_solution()
 

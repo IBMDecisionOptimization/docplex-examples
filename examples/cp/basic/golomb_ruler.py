@@ -47,7 +47,7 @@ mdl.add(minimize(marks[ORDER - 1]))
 
 # Solve model
 print("\nSolving model....")
-msol = mdl.solve()
+msol = mdl.solve(TimeLimit=100)
 
 # Print solution
 if msol:

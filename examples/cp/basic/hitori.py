@@ -202,7 +202,7 @@ for l in range(SIZE):
 
 # Solve model
 print("\nSolving model....")
-msol = mdl.solve()
+msol = mdl.solve(TimeLimit=100)
 
 # Print solution
 stdout.write("Initial problem:\n")

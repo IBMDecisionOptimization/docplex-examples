@@ -14,7 +14,7 @@ machines. A setup time is considered to be long if it is larger than 30.
 Please refer to documentation for appropriate setup of solving configuration.
 """
 
-import _utils_visu as visu
+import docplex.cp.utils_visu as visu
 from docplex.cp.model import *
 
 
@@ -132,7 +132,7 @@ mdl.add(minimize(nbLongSetups))
 
 # Solve model
 print("Solving model....")
-msol = mdl.solve(FailLimit=1000000)
+msol = mdl.solve(TimeLimit=10, FailLimit=1000000)
 print("Solution: ")
 msol.print_solution()
 

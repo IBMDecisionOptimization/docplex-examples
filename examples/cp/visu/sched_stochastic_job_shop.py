@@ -81,7 +81,7 @@ yields an expected makespan of 4749.6 which is clearly suboptimal.
 Please refer to documentation for appropriate setup of solving configuration.
 """
 
-import _utils_visu as visu
+import docplex.cp.utils_visu as visu
 from docplex.cp.model import *
 
 ##############################################################################
@@ -155,7 +155,7 @@ mdl.add(minimize(expected_makespan))
 
 # Solve model
 print("Solving model....")
-msol = mdl.solve(FailLimit=250000)
+msol = mdl.solve(TimeLimit=10, FailLimit=250000)
 print("Solution: ")
 msol.print_solution()
 
@@ -165,7 +165,7 @@ msol.print_solution()
 ##############################################################################
 
 if msol and visu.is_visu_enabled():
-    import _utils_visu as visu
+    import docplex.cp.utils_visu as visu
     import matplotlib.pyplot as plt
 
     makespan_values = [msol.get_var_solution(m).get_value() for m in makespans]

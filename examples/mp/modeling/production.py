@@ -17,23 +17,23 @@ from docplex.mp.model import Model
 from docplex.util.environment import get_environment
 
 
-def build_production_problem(products, resources, consumptions, context=None):
+def build_production_problem(products, resources, consumptions, **kwargs):
     """ Takes as input:
         - a list of product tuples (name, demand, inside, outside)
         - a list of resource tuples (name, capacity)
         - a list of consumption tuples (product_name, resource_named, consumed)
     """
-    mdl = Model('production', context=context)
+    mdl = Model(name='production', **kwargs)
     # --- decision variables ---
     mdl.inside_vars = mdl.continuous_var_dict(products, name='inside')
     mdl.outside_vars = mdl.continuous_var_dict(products, name='outside')
 
     # --- constraints ---
     # demand satisfaction
-    mdl.add_constraints(mdl.inside_vars[prod] + mdl.outside_vars[prod] >= prod[1] for prod in products)
+    mdl.add_constraints((mdl.inside_vars[prod] + mdl.outside_vars[prod] >= prod[1], 'ct_demand_%s' % prod[0]) for prod in products)
 
     # --- resource capacity ---
-    mdl.add_constraints(mdl.sum([mdl.inside_vars[p] * consumptions[p[0], res[0]] for p in products]) <= res[1] for res in resources)
+    mdl.add_constraints((mdl.sum(mdl.inside_vars[p] * consumptions[p[0], res[0]] for p in products) <= res[1], 'ct_res_%s' %res[0]) for res in resources)
 
     # --- objective ---
     mdl.total_inside_cost = mdl.sum(mdl.inside_vars[p] * p[2] for p in products)

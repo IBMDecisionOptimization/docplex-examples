@@ -13,7 +13,7 @@ expressed through precedence constraints.
 Please refer to documentation for appropriate setup of solving configuration.
 """
 
-import _utils_visu as visu
+import docplex.cp.utils_visu as visu
 from docplex.cp.model import *
 
 
@@ -58,7 +58,7 @@ mdl.add(end_before_start(painting,  moving))
 
 # Solve model
 print("Solving model....")
-msol = mdl.solve(TimeLimit=100)
+msol = mdl.solve(TimeLimit=10)
 print("Solution: ")
 msol.print_solution()
 

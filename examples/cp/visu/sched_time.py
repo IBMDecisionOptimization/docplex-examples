@@ -16,7 +16,7 @@ tasks. The objective is to minimize these costs.
 Please refer to documentation for appropriate setup of solving configuration.
 """
 
-import _utils_visu as visu
+import docplex.cp.utils_visu as visu
 from docplex.cp.model import *
 
 ##############################################################################
@@ -102,7 +102,7 @@ mdl.add(minimize(sum(cost)))
 ##############################################################################
 
 print("Solving model....")
-msol = mdl.solve()
+msol = mdl.solve(TimeLimit=10)
 print("Solution: ")
 msol.print_solution()
 

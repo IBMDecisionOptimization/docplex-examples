@@ -9,7 +9,6 @@ import json
 
 from docplex.util.environment import get_environment
 from docplex.mp.model import AbstractModel
-from docplex.mp.utils import is_iterable
 
 # ------------------------------
 
@@ -134,7 +133,6 @@ class CutStockMasterModel(AbstractModel):
 
     def add_new_pattern(self, item_usages):
         """ makes a new pattern from a sequence of usages (one per item)"""
-        assert is_iterable(item_usages)
         new_pattern_id = self.max_pattern_id + 1
         new_pattern = TPattern(new_pattern_id, 1)
         self.patterns.append(new_pattern)
