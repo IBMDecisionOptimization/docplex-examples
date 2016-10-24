@@ -22,7 +22,6 @@ DEFAULT_MAX_PROCESSES_PER_SERVER = 50
 
 
 class LoadBalancingModel(AbstractModel):
-
     def __init__(self, **kwargs):
         AbstractModel.__init__(self, 'load_balancing', **kwargs)
         # raw data
@@ -74,8 +73,9 @@ class LoadBalancingModel(AbstractModel):
 
         max_proc_per_server = self.max_processes_per_server
 
-        mdl.add_constraints(mdl.sum(self.assign_user_to_server_vars[u, s] * u.running for u in all_users) <= max_proc_per_server
-                            for s in all_servers)
+        mdl.add_constraints(
+            mdl.sum(self.assign_user_to_server_vars[u, s] * u.running for u in all_users) <= max_proc_per_server
+            for s in all_servers)
 
         # each assignment var <u, s>  is <= active_server(s)
         for s in all_servers:
@@ -102,7 +102,8 @@ class LoadBalancingModel(AbstractModel):
         for s in self.servers:
             ct_name = 'ct_define_max_sleeping_%s' % s
             mdl.add_constraint(
-                mdl.sum(self.assign_user_to_server_vars[u, s] * u.sleeping for u in self.users) <= max_sleeping_workload,
+                mdl.sum(
+                    self.assign_user_to_server_vars[u, s] * u.sleeping for u in self.users) <= max_sleeping_workload,
                 ct_name)
         mdl.add_kpi(max_sleeping_workload, "Max sleeping workload")
         self.max_sleeping_workload = max_sleeping_workload
@@ -142,26 +143,26 @@ class LoadBalancingModel(AbstractModel):
         # active server
         active_servers = sorted([s for s in mdl.servers if mdl.active_var_by_server[s].solution_value == 1])
         solution_dict["active servers"] = active_servers
-        
+
         # sleeping processes by server
         sleeping_processes = {}
         for s in active_servers:
             sleeping = sum(self.assign_user_to_server_vars[u, s].solution_value * u.sleeping for u in self.users)
             sleeping_processes[s] = sleeping
         solution_dict["sleeping processes by server"] = sleeping_processes
-        
+
         # user assignment
         user_assignment = []
         for (u, s) in sorted(mdl.assign_user_to_server_vars):
             if mdl.assign_user_to_server_vars[(u, s)].solution_value == 1:
-                n = {}
-                n['user'] = u.id
-                n['server'] = s
-                n['migration'] = "yes" if mdl._is_migration(u, s) else "no"
+                n = {
+                    'user': u.id,
+                    'server': s,
+                    'migration': "yes" if mdl._is_migration(u, s) else "no"
+                }
                 user_assignment.append(n)
         solution_dict['user assignment'] = user_assignment
         json_file.write(json.dumps(solution_dict, indent=3).encode('utf-8'))
-
 
 
 SERVERS = ["server002", "server003", "server001", "server006", "server007", "server004", "server005"]
@@ -252,7 +253,6 @@ USERS = [("user013", 2, 1, "server002"),
 
 
 class DefaultLoadBalancingModel(LoadBalancingModel):
-
     def __init__(self, context=None, **kwargs):
         LoadBalancingModel.__init__(self, context=context, **kwargs)
         self.load_data(SERVERS, USERS)
@@ -276,7 +276,6 @@ if __name__ == '__main__':
     """
     url = None  # put your url here
     key = None  # put your api key here
-
 
     lbm = DefaultLoadBalancingModel()
 

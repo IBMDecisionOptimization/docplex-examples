@@ -47,23 +47,24 @@ FOOD_NUTRIENTS = [
     ("Hotdog", 242.1, 23.5, 2.3, 0, 0, 18, 10.4)
 ]
 
+Food = namedtuple("Food", ["name", "unit_cost", "qmin", "qmax"])
+Nutrient = namedtuple("Nutrient", ["name", "qmin", "qmax"])
+
 
 def build_diet_model(**kwargs):
     # Create tuples with named fields for foods and nutrients
-    Food = namedtuple("Food", ["name", "unit_cost", "qmin", "qmax"])
-    food = [Food(*f) for f in FOODS]
 
-    Nutrient = namedtuple("Nutrient", ["name", "qmin", "qmax"])
+    food = [Food(*f) for f in FOODS]
     nutrients = [Nutrient(*row) for row in NUTRIENTS]
 
     food_nutrients = {(fn[0], nutrients[n].name):
                       fn[1 + n] for fn in FOOD_NUTRIENTS for n in range(len(NUTRIENTS))}
 
     # Model
-    mdl = Model("diet", **kwargs)
+    mdl = Model(name='diet', **kwargs)
 
     # Decision variables, limited to be >= Food.qmin and <= Food.qmax
-    qty = dict((f, mdl.continuous_var(f.qmin, f.qmax, f.name)) for f in food)
+    qty = {f: mdl.continuous_var(lb=f.qmin, ub=f.qmax, name=f.name) for f in food}
 
     # Limit range of nutrients, and mark them as KPIs
     for n in nutrients:

@@ -9,8 +9,6 @@ from collections import namedtuple
 from docplex.mp.model import Model
 from docplex.util.environment import get_environment
 
-
-
 # utility to convert a weekday string to an index in 0..6
 _all_days = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]
 
@@ -33,7 +31,9 @@ class TNurse(namedtuple("TNurse1", ["name", "seniority", "qualification", "pay_r
 
 
 # specialized namedtuple to redefine its str() method
-class TShift(namedtuple("TShift", ["department", "day", "start_time", "end_time", "min_requirement", "max_requirement"])):
+class TShift(namedtuple("TShift",
+                        ["department", "day", "start_time", "end_time", "min_requirement", "max_requirement"])):
+
     def __str__(self):
         # keep first two characters in department, uppercase
         dept2 = self.department[0:4].upper()

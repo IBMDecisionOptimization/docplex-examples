@@ -33,13 +33,15 @@ def build_production_problem(products, resources, consumptions, **kwargs):
     mdl.add_constraints((mdl.inside_vars[prod] + mdl.outside_vars[prod] >= prod[1], 'ct_demand_%s' % prod[0]) for prod in products)
 
     # --- resource capacity ---
-    mdl.add_constraints((mdl.sum(mdl.inside_vars[p] * consumptions[p[0], res[0]] for p in products) <= res[1], 'ct_res_%s' %res[0]) for res in resources)
+    mdl.add_constraints((mdl.sum(mdl.inside_vars[p] * consumptions[p[0], res[0]] for p in products) <= res[1],
+                         'ct_res_%s' % res[0]) for res in resources)
 
     # --- objective ---
     mdl.total_inside_cost = mdl.sum(mdl.inside_vars[p] * p[2] for p in products)
     mdl.total_outside_cost = mdl.sum(mdl.outside_vars[p] * p[3] for p in products)
     mdl.minimize(mdl.total_inside_cost + mdl.total_outside_cost)
     return mdl
+
 
 def print_production_solution(mdl, products):
     obj = mdl.objective_value

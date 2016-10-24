@@ -169,17 +169,17 @@ class CutStockMasterModel(AbstractModel):
         AbstractModel.print_information(self)
 
     def print_solution(self):
-        print("| Nb of cuts | Pattern   | Detail of pattern (nb of item1, ..., nb of item5)  |")
-        print("| {} |".format("-" * 75))
+        print("| Nb of cuts | Pattern   | Pattern's detail (# of item1,..., # of item5) |")
+        print("| {} |".format("-" * 70))
         for p in self.patterns:
             if self.cut_vars[p].solution_value >= 1e-3:
                 pattern_detail = {b.id: self.pattern_item_filled[(a, b)] for (a, b) in self.pattern_item_filled if
                                   a == p}
                 print(
-                    "| {:<10g} | {!s:9} | {!s:50} |".format(self.cut_vars[p].solution_value,
+                    "| {:<10g} | {!s:9} | {!s:45} |".format(self.cut_vars[p].solution_value,
                                                             p,
                                                             pattern_detail))
-        print("| {} |".format("-" * 75))
+        print("| {} |".format("-" * 70))
 
     def save_solution_as_json(self, file):
         solution = []
@@ -224,7 +224,7 @@ class CutStockMasterModel(AbstractModel):
                 curr = self.objective_value
                 print('{}> new column generation iteration, best={:g}, curr={:g}'.format(loop_count, best, curr))
                 duals = self.get_fill_dual_values()
-                print('{0}> moving duals from master to sub model: {1!s}'.format(loop_count, duals))
+                print('{0}> moving duals from master to sub model: {1}'.format(loop_count, map (lambda x: float('%0.2f' % x), duals)))
                 gen_model.update_duals(duals)
                 status = gen_model.solve(**kwargs)
                 if not status:

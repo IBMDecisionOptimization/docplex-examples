@@ -60,19 +60,19 @@ def build_sports(context=None):
     nb_play = {m: nb_intra_divisional if m.is_divisional == 1 else nb_inter_divisional for m in matches}
 
     plays = mdl.binary_var_matrix(keys1=matches, keys2=weeks,
-                                    name=lambda mw: "play_%d_%d_w%d" % (mw[0].team1, mw[0].team2, mw[1]))
+                                  name=lambda mw: "play_%d_%d_w%d" % (mw[0].team1, mw[0].team2, mw[1]))
     mdl.plays = plays
 
     for m in matches:
         mdl.add_constraint(mdl.sum(plays[m, w] for w in weeks) == nb_play[m],
-                             "correct_nb_games_%d_%d" % (m.team1, m.team2))
+                           "correct_nb_games_%d_%d" % (m.team1, m.team2))
 
     for w in weeks:
         # Each team must play exactly once in a week.
         for t in team_range:
             max_teams_in_division = (plays[m, w] for m in matches if m.team1 == t or m.team2 == t)
             mdl.add_constraint(mdl.sum(max_teams_in_division) == 1,
-                                 "plays_exactly_once_%d_%s" % (w, t))
+                               "plays_exactly_once_%d_%s" % (w, t))
 
     # Games between the same teams cannot be on successive weeks.
     mdl.add_constraints(plays[m, w] + plays[m, w + 1] <= 1
@@ -84,17 +84,18 @@ def build_sports(context=None):
                                  m.is_divisional == 1 and (m.team1 == t or m.team2 == t)]
 
         mdl.add_constraint(mdl.sum(max_teams_in_division) >= nb_first_half_games,
-                             "in_division_first_half_%s" % t)
+                           "in_division_first_half_%s" % t)
 
     # postpone divisional matches as much as possible
     # we weight each play variable with the square of w.
     mdl.maximize(mdl.sum(plays[m, w] * w * w for w in weeks for m in matches if m.is_divisional))
     return mdl
 
+# a named tuple to store solution
+TSolution = namedtuple("TSolution", ["week", "is_divisional", "team1", "team2"])
+
 
 def print_sports_solution(mdl):
-    TSolution = namedtuple("TSolution", ["week", "is_divisional", "team1", "team2"])
-
     # iterate with weeks first
     solution = [TSolution(w, m.is_divisional, mdl.teams[m.team1], mdl.teams[m.team2])
                 for w in mdl.weeks for m in mdl.matches

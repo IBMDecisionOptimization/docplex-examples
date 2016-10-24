@@ -33,89 +33,88 @@ A = [
 
 
 def run_GAP_model(As, Bs, Cs, **kwargs):
-    mdl = Model('GAP per Wolsey -without- Lagrangian Relaxation', **kwargs)
-    print("#As={}, #Bs={}, #Cs={}".format(len(As), len(Bs), len(Cs)))
-    number_of_cs = len(C)
-    # variables
-    x_vars = [mdl.binary_var_list(c, name=None) for c in Cs]
+    with Model('GAP per Wolsey -without- Lagrangian Relaxation', **kwargs) as mdl:
+        print("#As={}, #Bs={}, #Cs={}".format(len(As), len(Bs), len(Cs)))
+        number_of_cs = len(C)
+        # variables
+        x_vars = [mdl.binary_var_list(c, name=None) for c in Cs]
 
-    # constraints
-    mdl.add_constraints(mdl.sum(xv) <= 1
-                        for xv in x_vars)
+        # constraints
+        mdl.add_constraints(mdl.sum(xv) <= 1
+                            for xv in x_vars)
 
-    mdl.add_constraints(mdl.sum(x_vars[ii][j] * As[ii][j] for ii in range(number_of_cs)) <= bs
-                        for j, bs in enumerate(Bs))
+        mdl.add_constraints(mdl.sum(x_vars[ii][j] * As[ii][j] for ii in range(number_of_cs)) <= bs
+                            for j, bs in enumerate(Bs))
 
-    # objective
-    total_profit = mdl.sum(mdl.sum(c_ij * x_ij for c_ij, x_ij in zip(c_i, x_i))
-                           for c_i, x_i in zip(Cs, x_vars))
-    mdl.maximize(total_profit)
-    mdl.print_information()
-    assert mdl.solve(**kwargs)
-    obj = mdl.objective_value
-    mdl.print_information()
-    print("* GAP with no relaxation run OK, best objective is: {:g}".format(obj))
-    mdl.end()
+        # objective
+        total_profit = mdl.sum(mdl.sum(c_ij * x_ij for c_ij, x_ij in zip(c_i, x_i))
+                               for c_i, x_i in zip(Cs, x_vars))
+        mdl.maximize(total_profit)
+        mdl.print_information()
+        assert mdl.solve(**kwargs)
+        obj = mdl.objective_value
+        mdl.print_information()
+        print("* GAP with no relaxation run OK, best objective is: {:g}".format(obj))
     return obj
 
 
 def run_GAP_model_with_Lagrangian_relaxation(As, Bs, Cs, max_iters=101, **kwargs):
-    mdl = Model('GAP per Wolsey -with- Lagrangian Relaxation', **kwargs)
-    print("#As={}, #Bs={}, #Cs={}".format(len(As), len(Bs), len(Cs)))
-    c_range = range(len(Cs))
-    # variables
-    x_vars = [mdl.binary_var_list(c, name=None) for c in Cs]
-    p_vars = [mdl.continuous_var(lb=0) for _ in Cs]  # new for relaxation
+    with Model('GAP per Wolsey -with- Lagrangian Relaxation', **kwargs) as mdl:
+        print("#As={}, #Bs={}, #Cs={}".format(len(As), len(Bs), len(Cs)))
+        c_range = range(len(Cs))
+        # variables
+        x_vars = [mdl.binary_var_list(c, name=None) for c in Cs]
+        p_vars = [mdl.continuous_var(lb=0) for _ in Cs]  # new for relaxation
 
 
-    # was  mdl.add_constraint(mdl.sum(xVars[i]) <= 1)
-    mdl.add_constraints(mdl.sum(xv) == 1 - pv for (xv, pv) in izip(x_vars, p_vars))
+        # was  mdl.add_constraint(mdl.sum(xVars[i]) <= 1)
+        mdl.add_constraints(mdl.sum(xv) == 1 - pv for (xv, pv) in izip(x_vars, p_vars))
 
 
-    mdl.add_constraints(mdl.sum(x_vars[ii][j] * As[ii][j] for ii in c_range) <= bs
-                        for j, bs in enumerate(Bs))
+        mdl.add_constraints(mdl.sum(x_vars[ii][j] * As[ii][j] for ii in c_range) <= bs
+                            for j, bs in enumerate(Bs))
 
-    # lagrangian relaxation loop
-    eps = 1e-6
-    loop_count = 0
-    best = 0
-    initial_multiplier = 1
-    multipliers = [initial_multiplier] * len(Cs)
+        # lagrangian relaxation loop
+        eps = 1e-6
+        loop_count = 0
+        best = 0
+        initial_multiplier = 1
+        multipliers = [initial_multiplier] * len(Cs)
 
-    total_profit = mdl.sum(mdl.sum(c_ij * x_ij for c_ij, x_ij in zip(c_i, x_i)) for c_i, x_i in zip(Cs, x_vars))
-    mdl.add_kpi(total_profit, "Total profit")
+        total_profit = mdl.sum(mdl.sum(c_ij * x_ij for c_ij, x_ij in zip(c_i, x_i)) for c_i, x_i in zip(Cs, x_vars))
+        mdl.add_kpi(total_profit, "Total profit")
 
-    while loop_count <= max_iters:
-        loop_count += 1
-        # rebuilt at each loop iteration
-        total_penalty = mdl.sum(p_vars[i] * multipliers[i] for i in c_range)
-        mdl.maximize(total_profit + total_penalty)
-        ok = mdl.solve(**kwargs)
-        if not ok:
-            print("*** solve fails, stopping at iteration: %d" % loop_count)
-            break
-        best = mdl.objective_value
-        penalties = [pv.solution_value for pv in p_vars]
-        print('%d> new lagrangian iteration, obj=%g, m=%s, p=%s' % (loop_count, best, str(multipliers), str(penalties)))
-
-        do_stop = True
-        justifier = 0
-        for k in c_range:
-            penalized_violation = penalties[k] * multipliers[k]
-            if penalized_violation >= eps:
-                do_stop = False
-                justifier = penalized_violation
+        while loop_count <= max_iters:
+            loop_count += 1
+            # rebuilt at each loop iteration
+            total_penalty = mdl.sum(p_vars[i] * multipliers[i] for i in c_range)
+            mdl.maximize(total_profit + total_penalty)
+            ok = mdl.solve(**kwargs)
+            if not ok:
+                print("*** solve fails, stopping at iteration: %d" % loop_count)
                 break
+            best = mdl.objective_value
+            penalties = [pv.solution_value for pv in p_vars]
+            print('%d> new lagrangian iteration:\n\t obj=%g, m=%s, p=%s' % (loop_count, best, str(multipliers), str(penalties)))
 
-        if do_stop:
-            print("* Lagrangian relaxation succeeds, best={:g}, penalty={:g}, #iterations={}"
-                  .format(best, total_penalty.solution_value, loop_count))
-            break
-        else:
-            # update multipliers and start loop again.
-            scale_factor = 1.0 / float(loop_count)
-            multipliers = [max(multipliers[i] - scale_factor * penalties[i], 0.) for i in c_range]
-            print('{}> -- loop continues, m={}, justifier={:g}'.format(loop_count, str(multipliers), justifier))
+            do_stop = True
+            justifier = 0
+            for k in c_range:
+                penalized_violation = penalties[k] * multipliers[k]
+                if penalized_violation >= eps:
+                    do_stop = False
+                    justifier = penalized_violation
+                    break
+
+            if do_stop:
+                print("* Lagrangian relaxation succeeds, best={:g}, penalty={:g}, #iterations={}"
+                      .format(best, total_penalty.solution_value, loop_count))
+                break
+            else:
+                # update multipliers and start loop again.
+                scale_factor = 1.0 / float(loop_count)
+                multipliers = [max(multipliers[i] - scale_factor * penalties[i], 0.) for i in c_range]
+                print('{}> -- loop continues, m={}, justifier={:g}'.format(loop_count, str(multipliers), justifier))
 
     return best
 
