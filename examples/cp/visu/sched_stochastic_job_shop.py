@@ -117,7 +117,7 @@ def make_scenario_submodel(k):
     itvs = [[interval_var(size=durations[k][i][j],
                           name='O' + str(k) + '-' + str(i) + '-' + str(j)) for j in range(nb_machines)] for i in
             range(nb_jobs)]
-    mach = [[]] * nb_machines
+    mach = [[] for j in range(nb_machines)]
 
     for i in range(nb_jobs):
         for j in range(nb_machines):

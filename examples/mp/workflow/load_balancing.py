@@ -51,7 +51,7 @@ class LoadBalancingModel(AbstractModel):
         all_servers = self.servers
         all_users = self.users
 
-        self.active_var_by_server = self.binary_var_dict(all_servers, 'isActive')
+        self.active_var_by_server = self.binary_var_dict(all_servers, name='isActive')
 
         def user_server_pair_namer(u_s):
             u, s = u_s
