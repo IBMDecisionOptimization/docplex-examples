@@ -79,7 +79,7 @@ for i in range(nbTasks):
                 resources[j] += pulse(tasks[i], demands[i][j])
 for j in range(nbResources):
     # mdl.add(resources[j]<=capacities[j])
-    mdl.add(always_in(resources[j], INTERVAL_MIN, INTERVAL_MAX, 0, capacities[j]))
+    mdl.add(always_in(resources[j], (INTERVAL_MIN, INTERVAL_MAX), 0, capacities[j]))
 
 
 # Add minimization objective

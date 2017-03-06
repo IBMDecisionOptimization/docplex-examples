@@ -175,7 +175,7 @@ for m in modes_data:
 
 for j in range(nb_renewable):
     # mdl.add(renewables[j]<=capRenewables[j])
-    mdl.add(always_in(renewables[j], INTERVAL_MIN, INTERVAL_MAX, 0, cap_renewables[j]))
+    mdl.add(always_in(renewables[j], (INTERVAL_MIN, INTERVAL_MAX), 0, cap_renewables[j]))
 
 for j in range(nb_non_renewable):
     mdl.add(non_renewables[j] <= cap_non_renewables[j])

@@ -10,7 +10,7 @@ from collections import namedtuple
 import json
 
 from docplex.util.environment import get_environment
-from docplex.mp.model import AbstractModel
+from docplex.mp.absmodel import AbstractModel
 
 
 class TUser(namedtuple("TUser", ["id", "running", "sleeping", "current_server"])):
@@ -39,7 +39,6 @@ class LoadBalancingModel(AbstractModel):
         self.servers = servers
         self.users = [TUser(*user_row) for user_row in users]
         self.max_processes_per_server = max_process_per_server
-        return self.is_valid()
 
     def clear(self):
         AbstractModel.clear(self)

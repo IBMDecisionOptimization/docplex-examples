@@ -122,8 +122,8 @@ for p in range(5):
 # mdl.add(workers_usage <= NB_WORKERS)
 # mdl.add(0 <= cash)
 
-mdl.add(always_in(workers_usage, INTERVAL_MIN, INTERVAL_MAX, 0, NB_WORKERS))
-mdl.add(always_in(cash, INTERVAL_MIN, INTERVAL_MAX, 0, INT_MAX))
+mdl.add(always_in(workers_usage, (INTERVAL_MIN, INTERVAL_MAX), 0, NB_WORKERS))
+mdl.add(always_in(cash, (INTERVAL_MIN, INTERVAL_MAX), 0, INT_MAX))
 
 # Add minimization objective
 mdl.add(minimize(max([end_of(task) for task in all_tasks])))

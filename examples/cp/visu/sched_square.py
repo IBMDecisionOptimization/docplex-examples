@@ -63,8 +63,8 @@ for i in range(len(SIZE_SUBSQUARE)):
                 | (end_of(y[i]) <= start_of(y[j]))
                 | (end_of(y[j]) <= start_of(y[i])))
 
-mdl.add(always_in(rx, 0, SIZE_SQUARE, SIZE_SQUARE, SIZE_SQUARE))
-mdl.add(always_in(ry, 0, SIZE_SQUARE, SIZE_SQUARE, SIZE_SQUARE))
+mdl.add(always_in(rx, (0, SIZE_SQUARE), SIZE_SQUARE, SIZE_SQUARE))
+mdl.add(always_in(ry, (0, SIZE_SQUARE), SIZE_SQUARE, SIZE_SQUARE))
 
 # Define search phases
 mdl.set_search_phases([search_phase(x), search_phase(y)])

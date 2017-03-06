@@ -8,7 +8,7 @@ from collections import namedtuple
 import json
 
 from docplex.util.environment import get_environment
-from docplex.mp.model import AbstractModel
+from docplex.mp.absmodel import AbstractModel
 
 # ------------------------------
 

@@ -137,7 +137,7 @@ make_house(4, 90)
 
 # TODO:
 # mdl.add(workersUsage <= nbWorkers)
-mdl.add(always_in(workers_usage, INTERVAL_MIN, INTERVAL_MAX, 0, NB_WORKERS))
+mdl.add(always_in(workers_usage, (INTERVAL_MIN, INTERVAL_MAX), 0, NB_WORKERS))
 
 # Add minimization objective
 mdl.add(minimize(max([end_of(task) for task in all_tasks])))
