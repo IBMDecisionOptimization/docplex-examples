@@ -151,7 +151,7 @@ modes = {modes_data[i]: interval_var(name=modes_data[i].name,
                                     optional=True,
                                     size=modes_data[i].duration) for i in range(len(modes_data))}
 
-renewables = [pulse(0, 0, 0) for j in range(nb_renewable)]
+renewables = [pulse((0, 0), 0) for j in range(nb_renewable)]
 
 non_renewables = [0 for j in range(nb_non_renewable)]
 

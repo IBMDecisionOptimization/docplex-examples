@@ -57,7 +57,7 @@ supplier = integer_var_list(nbStores, 0, nbLocations - 1, "supplier")
 open = integer_var_list(nbLocations, 0, 1, "open")
       
 for s in supplier:
-    mdl.add(open[s] == 1)
+    mdl.add(element(open, s) == 1)
 
 for j in range(nbLocations):
     mdl.add(count(supplier, j) <= capacity[j])    

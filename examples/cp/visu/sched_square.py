@@ -40,8 +40,8 @@ mdl = CpoModel()
 # Create array of variables for subsquares
 x = []
 y = []
-rx = pulse(0, 0, 0)
-ry = pulse(0, 0, 0)
+rx = pulse((0, 0), 0)
+ry = pulse((0, 0), 0)
 
 for i in range(len(SIZE_SUBSQUARE)):
     sq = SIZE_SUBSQUARE[i]

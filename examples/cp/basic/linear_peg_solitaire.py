@@ -81,15 +81,15 @@ for m in range(NB_MOVES):
     fromState = states[m]
     toState = states[m + 1]
     # Constrain location of holes
-    mdl.add(fromState[tvar] == HOLE)
+    mdl.add(element(fromState, tvar) == HOLE)
     # Constrain move size and direction
     delta = tvar - fvar
     mdl.add(allowed_assignments(delta, [-2, -1, 1, 2]))
-    peg = fromState[fvar]
+    peg = element(fromState, fvar)
     mdl.add( ((peg == RED) & (delta > 0)) | ((peg == BLUE) & (delta < 0)) )
     # Make moves
-    mdl.add(toState[tvar] == fromState[fvar])
-    mdl.add(toState[fvar] == HOLE)
+    mdl.add(element(toState, tvar) == element(fromState, fvar))
+    mdl.add(element(toState, fvar) == HOLE)
     # Force equality of other positions
     for p in range(SIZE):
         mdl.add(if_then((p != fvar) & (p != tvar), fromState[p] == toState[p]))

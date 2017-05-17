@@ -8,7 +8,7 @@ from collections import namedtuple
 import json
 
 from docplex.util.environment import get_environment
-from docplex.mp.absmodel import AbstractModel
+from docplex.mp.model import Model
 
 # ------------------------------
 
@@ -39,229 +39,222 @@ class TItem(object):
 
 
 class TPattern(namedtuple("TPattern", ["id", "cost"])):
-
     def __str__(self):
         return 'pattern%d' % self.id
 
-
-class CuttingStockPatternGeneratorModel(AbstractModel):
-    """ The cutting stock pattern-generation model."""
-
-    def __init__(self, master_items, roll_width, **kwargs):
-        AbstractModel.__init__(self, 'CuttingStock_PatternGeneratorModel', **kwargs)
-        self.items = master_items
-        # default values
-        self.duals = [1] * len(master_items)
-        self.use_vars = {}
-        self.roll_width = roll_width
-
-    def setup_variables(self):
-        self.use_vars = self.integer_var_list(self.items, ub=999999, name='Use')
-
-    def load_data(self, *args):
-        self.items = [TItem.make(it_row) for it_row in args[0]]
-        self.duals = args[1][:]
-        self.roll_width = args[2]
-
-    def update_duals(self, new_duals):
-        """ Update the duals array"""
-        self.duals = new_duals
-        # duals not used in constraint , only objective has to be updated
-        self.setup_objective()
-
-    def clear(self):
-        self.use_vars = {}
-        AbstractModel.clear(self)
-
-    def setup_constraints(self):
-        self.add_constraint(self.scal_prod(self.use_vars, (it.size for it in self.items)) <= self.roll_width)
-
-    def setup_objective(self):
-        """ NOTE: this method is called at each loop"""
-        self.minimize(1 - self.scal_prod(self.use_vars, self.duals))
-
-    def get_use_values(self):
-        assert self.solution
-
-        return [use_var.solution_value for use_var in self.use_vars]
+# ---
 
 
-class FirstPatternGeneratorModel(CuttingStockPatternGeneratorModel):
-    """ a specialized generator model to check the first iteration of pattern generation."""
+def make_cutstock_pattern_generation_model(items, roll_width, **kwargs):
+    gen_model = Model(name='cutstock_generate_patterns', **kwargs)
+    # store data
+    gen_model.items = items
+    gen_model.roll_width = roll_width
+    # default values
+    gen_model.duals = [1] * len(items)
+    # 1. create variables: one per item
+    gen_model.use_vars = gen_model.integer_var_list(keys=items, ub=999999, name='use')
+    # 2 setup constraint:
+    # --- sum of item usage times item sizes must be less than roll width
+    gen_model.add(gen_model.dot(gen_model.use_vars, (it.size for it in items)) <= roll_width)
 
-    def __init__(self):
-        CuttingStockPatternGeneratorModel.__init__(self, DEFAULT_ITEMS, DEFAULT_ROLL_WIDTH)
-        self.update_duals(FIRST_GENERATION_DUALS)
+    # store dual expression for dynamic edition
+    gen_model.use_dual_expr = 1 - gen_model.dot(gen_model.use_vars, gen_model.duals)
+    # minimize
+    gen_model.minimize(gen_model.use_dual_expr)
+
+    return gen_model
 
 
-class CutStockMasterModel(AbstractModel):
-    """ The cutting stock master model. """
+def cutstock_update_duals(gmodel, new_duals):
+    # update the duals array and the the duals exppression...
+    # edition is propagated to the objective of the model.
+    gmodel.duals = new_duals
+    use_vars = gmodel.use_vars
+    assert len(new_duals) == len(use_vars)
+    # TODO: use zip here
+    updated_used = [(use, -new_duals[u]) for u, use in enumerate(use_vars)]
+    # this modification is notified to the objective.
+    gmodel.use_dual_expr.set_coefficients(updated_used)
+    return gmodel
 
-    def __init__(self, **kwargs):
-        AbstractModel.__init__(self, 'Cutting Stock Master', **kwargs)
-        self.items = []
-        self.patterns = []
-        self.pattern_item_filled = {}
 
-        self.max_pattern_id = -1
-        self.items_by_id = {}
-        self.patterns_by_id = {}
-        # results
-        self.best_cost = -1
-        self.nb_iters = -1
-        self.item_fill_cts = []
-        self.cut_vars = {}
+def make_custstock_master_model(item_table, pattern_table, fill_table, roll_width, **kwargs):
+    m = Model(name='custock_master', **kwargs)
 
-        self.roll_width = 99999
-        self.MAX_CUT = 9999
+    # store data as properties
+    m.items = [TItem.make(it_row) for it_row in item_table]
+    m.items_by_id = {it.id: it for it in m.items}
+    m.patterns = [TPattern(*pattern_row) for pattern_row in pattern_table]
+    m.patterns_by_id = {pat.id: pat for pat in m.patterns}
+    m.max_pattern_id = max(pt.id for pt in m.patterns)
 
-    def clear(self):
-        AbstractModel.clear(self)
-        self.item_fill_cts = []
-        self.cut_vars = {}
+    # build a dictionary storing how much each pattern fills each item.
+    m.pattern_item_filled = {(m.patterns_by_id[p], m.items_by_id[i]): f for (p, i, f) in fill_table}
+    m.roll_width = roll_width
 
-    def load_data(self, item_table, pattern_table, fill_table, roll_width):
-        self.items = [TItem.make(it_row) for it_row in item_table]
-        self.items_by_id = {it.id: it for it in self.items}
-        self.patterns = [TPattern(*pattern_row) for pattern_row in pattern_table]
-        self.patterns_by_id = {pat.id: pat for pat in self.patterns}
-        self.max_pattern_id = max(pt.id for pt in self.patterns)
+    # --- variables
+    # one cut var per pattern...
+    m.MAX_CUT = 9999
+    m.cut_vars = m.continuous_var_dict(m.patterns, lb=0, ub=m.MAX_CUT, name='cut')
 
-        # build a dictionary storing how much each pattern fills each item.
-        self.pattern_item_filled = {(self.patterns_by_id[p], self.items_by_id[i]): f for (p, i, f) in fill_table}
-        self.roll_width = roll_width
+    # --- add fill constraints
+    #
+    all_patterns = m.patterns
+    all_items = m.items
+    m.item_fill_cts = []
+    for item in all_items:
+        item_fill_ct = m.sum(
+            m.cut_vars[p] * m.pattern_item_filled.get((p, item), 0) for p in all_patterns) >= item.demand
+        item_fill_ct.name = 'ct_fill_{0!s}'.format(item)
+        m.item_fill_cts.append(item_fill_ct)
+    m.add_constraints(m.item_fill_cts)
 
-    def add_new_pattern(self, item_usages):
-        """ makes a new pattern from a sequence of usages (one per item)"""
-        new_pattern_id = self.max_pattern_id + 1
-        new_pattern = TPattern(new_pattern_id, 1)
-        self.patterns.append(new_pattern)
-        self.max_pattern_id = new_pattern_id
-        for used, item in zip(item_usages, self.items):
-            self.pattern_item_filled[new_pattern, item] = used
+    # --- minimize total cut stock
+    m.total_cutting_cost = m.sum(m.cut_vars[p] * p.cost for p in all_patterns)
+    m.minimize(m.total_cutting_cost)
 
-    def setup_variables(self):
-        # how much to cut?
-        self.cut_vars = self.continuous_var_dict(self.patterns, lb=0, ub=self.MAX_CUT, name='Cut')
+    return m
 
-    def setup_constraints(self):
-        all_items = self.items
-        all_patterns = self.patterns
 
-        def pattern_item_filled(pattern, item):
-            return self.pattern_item_filled[pattern, item] if (pattern, item) in self.pattern_item_filled else 0
+def add_pattern_to_master_model(master_model, item_usages):
+    """ Adds a new pattern to the master model.
+    
+    This function performs the following:
+    
+    1. build a new pattern instance from item usages (taken from sub-model)
+    2. add it to the master model
+    3. update decision objects with this new pattern.
+    """
+    new_pattern_id = max(pt.id for pt in master_model.patterns) + 1
+    new_pattern = TPattern(new_pattern_id, 1)
+    master_model.patterns.append(new_pattern)
+    for used, item in zip(item_usages, master_model.items):
+        master_model.pattern_item_filled[new_pattern, item] = used
 
-        self.item_fill_cts = []
-        for item in all_items:
-            item_fill_ct = self.sum(
-                self.cut_vars[p] * pattern_item_filled(p, item) for p in all_patterns) >= item.demand
-            self.item_fill_cts.append(item_fill_ct)
-            self.add_constraint(item_fill_ct, 'ct_fill_{0!s}'.format(item))
+    # --- add one decision variable, linked to the new pattern.
+    new_pattern_cut_var = master_model.continuous_var(lb=0, ub=master_model.MAX_CUT,
+                                                      name='cut_{0!s}'.format(new_pattern))
+    master_model.cut_vars[new_pattern] = new_pattern_cut_var
 
-    def setup_objective(self):
-        total_cutting_cost = self.sum(self.cut_vars[p] * p.cost for p in self.patterns)
-        self.add_kpi(total_cutting_cost, 'Total cutting cost')
-        self.minimize(total_cutting_cost)
+    # update constraints
+    for item, ct in zip(master_model.items, master_model.item_fill_cts):
+        # update fill constraint by changing lhs
+        ctlhs = ct.lhs
+        filled = master_model.pattern_item_filled[new_pattern, item]
+        if filled:
+            ctlhs += new_pattern_cut_var * filled
 
-    def print_information(self):
-        print('#items={}'.format(len(self.items)))
-        print('#patterns={}'.format(len(self.patterns)))
-        AbstractModel.print_information(self)
+    # update objective:
+    #   side-effect on  the total cutting cost expr propagates to the objective.
+    cost_expr = master_model.total_cutting_cost
+    cost_expr += new_pattern_cut_var * new_pattern.cost  # this performw a side effect!
 
-    def print_solution(self):
-        print("| Nb of cuts | Pattern   | Pattern's detail (# of item1,..., # of item5) |")
-        print("| {} |".format("-" * 70))
-        for p in self.patterns:
-            if self.cut_vars[p].solution_value >= 1e-3:
-                pattern_detail = {b.id: self.pattern_item_filled[(a, b)] for (a, b) in self.pattern_item_filled if
-                                  a == p}
-                print(
-                    "| {:<10g} | {!s:9} | {!s:45} |".format(self.cut_vars[p].solution_value,
-                                                            p,
-                                                            pattern_detail))
-        print("| {} |".format("-" * 70))
+    return master_model
 
-    def save_solution_as_json(self, file):
-        solution = []
-        for p in self.patterns:
-            if self.cut_vars[p].solution_value >= 1e-3:
-                pattern_detail = {b.id: self.pattern_item_filled[(a, b)] for (a, b) in self.pattern_item_filled if
-                                  a == p}
-                n = {}
-                n['pattern'] = str(p)
-                n['cuts']= "%g" % self.cut_vars[p].solution_value
-                n['details'] = pattern_detail
-                solution.append(n)
-        file.write(json.dumps(solution, indent=3).encode('utf-8'))
 
-    def run(self, **kwargs):
-        master_model = self
-        master_model.ensure_setup()
-        gen_model = CuttingStockPatternGeneratorModel(master_items=self.items,
-                                                      roll_width=self.roll_width,
-                                                      output_level=self.output_level,
-                                                      **kwargs
-                                                      )
-        gen_model.setup()
-        rc_eps = 1e-6
-        obj_eps = 1e-4
-        loop_count = 0
-        best = 0
-        curr = self.infinity
-        status = False
-        while loop_count < 100 and abs(best - curr) >= obj_eps:
-            print('\n#items={},#patterns={}'.format(len(self.items), len(self.patterns)))
-            if loop_count > 0:
-                self.refresh_model()
-            status = master_model.solve(**kwargs)
-            loop_count += 1
-            best = curr
-            if not status:
-                print('{}> master model fails, stop'.format(loop_count))
-                break
-            else:
-                assert master_model.solution
-                curr = self.objective_value
-                print('{}> new column generation iteration, best={:g}, curr={:g}'.format(loop_count, best, curr))
-                duals = self.get_fill_dual_values()
-                print('{0}> moving duals from master to sub model: {1}'.format(loop_count, map (lambda x: float('%0.2f' % x), duals)))
-                gen_model.update_duals(duals)
-                status = gen_model.solve(**kwargs)
-                if not status:
-                    print('{}> slave model fails, stop'.format(loop_count))
-                    break
+def cutstock_print_solution(cutstock_model):
+    patterns = cutstock_model.patterns
+    cut_var_values = {p: cutstock_model.cut_vars[p].solution_value for p in patterns}
+    pattern_item_filled = cutstock_model.pattern_item_filled
+    print("| Nb of cuts | Pattern   | Pattern's detail (# of item1,item2,...) |")
+    print("| {} |".format("-" * 70))
+    for p in patterns:
+        if cut_var_values[p] >= 1e-3:
+            pattern_detail = {b.id: pattern_item_filled[a, b] for a, b in pattern_item_filled if
+                              a == p}
+            print(
+                "| {:<10g} | {!s:9} | {!s:45} |".format(cut_var_values[p],
+                                                        p,
+                                                        pattern_detail))
+    print("| {} |".format("-" * 70))
 
-                rc_cost = gen_model.objective_value
-                if rc_cost <= -rc_eps:
-                    print('{}> slave model runs with obj={:g}'.format(loop_count, rc_cost))
-                else:
-                    print('{}> pattern-generator model stops, obj={:g}'.format(loop_count, rc_cost))
-                    break
 
-                use_values = gen_model.get_use_values()
-                print('{}> add new pattern to master data: {}'.format(loop_count, str(use_values)))
-                # make a new pattern with use values
-                if not (loop_count < 100 and abs(best - curr) >= obj_eps):
-                    print('* terminating: best-curr={:g}'.format(abs(best - curr)))
-                    break
-                self.add_new_pattern(use_values)
+def cutstock_save_as_json(model, json_file):
+    patterns = model.patterns
+    cut_var_values = {p: model.cut_vars[p].solution_value for p in patterns}
+    solution = []
+    for p in patterns:
+        if cut_var_values[p] >= 1e-3:
+            pattern_detail = {b.id: model.pattern_item_filled[(a, b)] for (a, b) in model.pattern_item_filled if
+                              a == p}
+            n = {'pattern': str(p),
+                 'cuts': "%g" % cut_var_values[p],
+                 'details': pattern_detail}
+            solution.append(n)
+    json_file.write(json.dumps(solution, indent=3).encode('utf-8'))
 
-        if status:
-            print('Cutting-stock column generation terminates, best={:g}, #loops={}'.format(curr, loop_count))
-            self.best_cost = curr
-            self.nb_iters = loop_count
+
+def cutstock_solve(item_table, pattern_table, fill_table, roll_width, **kwargs):
+    verbose = kwargs.pop('verbose', True)
+    master_model = make_custstock_master_model(item_table, pattern_table, fill_table, roll_width, **kwargs)
+
+    # these two fields contain named tuples
+    items = master_model.items
+    patterns = master_model.patterns
+    gen_model = make_cutstock_pattern_generation_model(items, roll_width, **kwargs)
+
+    rc_eps = 1e-6
+    obj_eps = 1e-4
+    loop_count = 0
+    best = 0
+    curr = 1e+20
+    ms = None
+
+    while loop_count < 100 and abs(best - curr) >= obj_eps:
+        ms = master_model.solve(**kwargs)
+        loop_count += 1
+        best = curr
+        if not ms:
+            print('{}> master model fails, stop'.format(loop_count))
+            break
         else:
-            print("Cutting-stock column generation fails")
-        return status
+            assert ms
+            curr = master_model.objective_value
+            if verbose:
+                print('{}> new column generation iteration, #patterns={}, best={:g}, curr={:g}'
+                      .format(loop_count, len(patterns), best, curr))
+            duals = master_model.dual_values(master_model.item_fill_cts)
+            if verbose:
+                print('{0}> moving duals from master to sub model: {1}'
+                      .format(loop_count, map(lambda x: float('%0.2f' % x), duals)))
+            cutstock_update_duals(gen_model, duals)
+            gs = gen_model.solve(**kwargs)
+            if not gs:
+                print('{}> slave model fails, stop'.format(loop_count))
+                break
 
-    def get_fill_dual_values(self):
-        return self.dual_values(self.item_fill_cts)
+            rc_cost = gen_model.objective_value
+            if rc_cost <= -rc_eps:
+                if verbose:
+                    print('{}> slave model runs with obj={:g}'.format(loop_count, rc_cost))
+            else:
+                if verbose:
+                    print('{}> pattern-generator model stops, obj={:g}'.format(loop_count, rc_cost))
+                break
+
+            use_values = gen_model.solution.get_values(gen_model.use_vars)
+            if verbose:
+                print('{}> add new pattern to master data: {}'.format(loop_count, str(use_values)))
+            # make a new pattern with use values
+            if not (loop_count < 100 and abs(best - curr) >= obj_eps):
+                print('* terminating: best-curr={:g}'.format(abs(best - curr)))
+                break
+            add_pattern_to_master_model(master_model, use_values)
+
+    if ms:
+        if verbose:
+            print('\n* Cutting-stock column generation terminates, best={:g}, #loops={}'.format(curr, loop_count))
+            cutstock_print_solution(master_model)
+        return ms
+    else:
+        print("!!!!  Cutting-stock column generation fails  !!!!")
+        return None
 
 
-class DefaultCutStockMasterModel(CutStockMasterModel):
-    def __init__(self, **kwargs):
-        CutStockMasterModel.__init__(self, **kwargs)
-        self.load_data(DEFAULT_ITEMS, DEFAULT_PATTERNS, DEFAULT_PATTERN_ITEM_FILLED, DEFAULT_ROLL_WIDTH)
+def cutstock_solve_default(**kwargs):
+    return cutstock_solve(DEFAULT_ITEMS, DEFAULT_PATTERNS, DEFAULT_PATTERN_ITEM_FILLED, DEFAULT_ROLL_WIDTH,
+                          **kwargs)
 
 
 if __name__ == '__main__':
@@ -283,12 +276,11 @@ if __name__ == '__main__':
     url = None
     key = None
 
-    cutstock_model = DefaultCutStockMasterModel()
-    
-    # Solve the model. If a key has been specified above, the solve
-    # will use IBM Decision Optimization on cloud.
-    if cutstock_model.run(url=url, key=key):
-        cutstock_model.print_solution()
+    from private.timing import MyTimer
+
+    with MyTimer('main', print_details=False):
+        s = cutstock_solve_default(url=url, key=key)
+        assert abs(s.objective_value - 46.25) <= 0.1
         # Save the solution as "solution.json" program output.
         with get_environment().get_output_stream("solution.json") as fp:
-            cutstock_model.save_solution_as_json(fp)
+            cutstock_save_as_json(s.model, fp)
