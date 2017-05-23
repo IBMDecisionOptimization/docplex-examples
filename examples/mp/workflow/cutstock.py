@@ -276,11 +276,8 @@ if __name__ == '__main__':
     url = None
     key = None
 
-    from private.timing import MyTimer
-
-    with MyTimer('main', print_details=False):
-        s = cutstock_solve_default(url=url, key=key)
-        assert abs(s.objective_value - 46.25) <= 0.1
-        # Save the solution as "solution.json" program output.
-        with get_environment().get_output_stream("solution.json") as fp:
-            cutstock_save_as_json(s.model, fp)
+    s = cutstock_solve_default(url=url, key=key)
+    assert abs(s.objective_value - 46.25) <= 0.1
+    # Save the solution as "solution.json" program output.
+    with get_environment().get_output_stream("solution.json") as fp:
+        cutstock_save_as_json(s.model, fp)
