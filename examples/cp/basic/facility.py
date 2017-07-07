@@ -5,12 +5,14 @@
 # --------------------------------------------------------------------------
 
 """
-A company has 10 stores.  Each store must be supplied by one warehouse. The
-company has five possible locations where it has property and can build a
-supplier warehouse: Bonn, Bordeaux, London, Paris, and Rome. The warehouse
-locations have different capacities. A warehouse built in Bordeaux or Rome
-could supply only one store. A warehouse built in London could supply two
-stores; a warehouse built in Bonn could supply three stores; and a warehouse
+A company has 8 stores.
+Each store must be supplied by one warehouse.
+The company has 5 possible locations where it has property and can build a
+supplier warehouse: Bonn, Bordeaux, London, Paris, and Rome.
+
+The warehouse locations have different capacities. A warehouse built in Bordeaux
+or Rome could supply only one store ; a warehouse built in London could supply
+two stores; a warehouse built in Bonn could supply three stores; and a warehouse
 built in Paris could supply four stores.
 
 The supply costs vary for each store, depending on which warehouse is the
@@ -26,24 +28,38 @@ making sure that each store is supplied by a warehouse.
 Please refer to documentation for appropriate setup of solving configuration.
 """
 
-from docplex.cp.model import *
+from docplex.cp.model import CpoModel
+from collections import namedtuple
 
 ##############################################################################
 ## Problem data
 ##############################################################################
 
-nbLocations = 5
-nbStores = 8
-capacity = (3, 1, 2, 4, 1)
-fixedCost = (480, 200, 320, 340, 300)
-cost = ((24, 74, 31, 51, 84),
-        (57, 54, 86, 61, 68),
-        (57, 67, 29, 91, 71),
-        (54, 54, 65, 82, 94),
-        (98, 81, 16, 61, 27),
-        (13, 92, 34, 94, 87),
-        (54, 72, 41, 12, 78),
-        (54, 64, 65, 89, 89))
+Warehouse = namedtuple('Wharehouse', ('city',      # Name of the city
+                                      'capacity',  # Capacity of the warehouse
+                                      'cost',      # Warehouse building cost
+                                      ))
+
+# List of warehouses
+WAREHOUSES = (Warehouse("Bonn",     3, 480),
+              Warehouse("Bordeaux", 1, 200),
+              Warehouse("London",   2, 320),
+              Warehouse("Paris",    4, 340),
+              Warehouse("Rome",     1, 300))
+NB_WAREHOUSES = len(WAREHOUSES)
+
+# Number of stores
+NB_STORES = 8
+
+# Supply cost for each store and warehouse
+SUPPLY_COST = ((24, 74, 31, 51, 84),
+               (57, 54, 86, 61, 68),
+               (57, 67, 29, 91, 71),
+               (54, 54, 65, 82, 94),
+               (98, 81, 16, 61, 27),
+               (13, 92, 34, 94, 87),
+               (54, 72, 41, 12, 78),
+               (54, 64, 65, 89, 89))
 
 
 ##############################################################################
@@ -53,21 +69,28 @@ cost = ((24, 74, 31, 51, 84),
 # Create CPO model
 mdl = CpoModel()
 
-supplier = integer_var_list(nbStores, 0, nbLocations - 1, "supplier")
-open = integer_var_list(nbLocations, 0, 1, "open")
-      
+# Create one variable per store to contain the index of its supplying warehouse
+NB_WAREHOUSES = len(WAREHOUSES)
+supplier = mdl.integer_var_list(NB_STORES, 0, NB_WAREHOUSES - 1, "supplier")
+
+# Create one variable per warehouse to indicate if it is open (1) or not (0)
+open = mdl.integer_var_list(NB_WAREHOUSES, 0, 1, "open")
+
+# Add constraints stating that the supplying warehouse of each store must be open
 for s in supplier:
-    mdl.add(element(open, s) == 1)
+    mdl.add(mdl.element(open, s) == 1)
 
-for j in range(nbLocations):
-    mdl.add(count(supplier, j) <= capacity[j])    
-     
-obj = scal_prod(open, fixedCost)
-for i in range(nbStores):
-    obj = obj + element(supplier[i], cost[i])
+# Add constraints stating that the number of stores supplied by each warehouse must not exceed its capacity
+for wx in range(NB_WAREHOUSES):
+    mdl.add(mdl.count(supplier, wx) <= WAREHOUSES[wx].capacity)
 
-# Add minimization objective
-mdl.add(minimize(obj))
+# Build an expression that computes total cost
+total_cost = mdl.scal_prod(open, [w.cost for w in WAREHOUSES])
+for sx in range(NB_STORES):
+    total_cost = total_cost + mdl.element(supplier[sx], SUPPLY_COST[sx])
+
+# Minimize total cost
+mdl.add(mdl.minimize(total_cost))
  
 
 ##############################################################################
@@ -77,4 +100,14 @@ mdl.add(minimize(obj))
 # Solve model
 print("\nSolving model....")
 msol = mdl.solve(TimeLimit=10)
-msol.print_solution()
+
+# Print solution
+if msol:
+    for wx in range(NB_WAREHOUSES):
+        if msol[open[wx]] == 1:
+            print("Warehouse '{}' open to supply stores: {}"
+                  .format(WAREHOUSES[wx].city,
+                          ", ".join(str(sx) for sx in range(NB_STORES) if msol[supplier[sx]] == wx)))
+    print("Total cost is: {}".format(msol.get_objective_values()[0]))
+else:
+    print("No solution found.")

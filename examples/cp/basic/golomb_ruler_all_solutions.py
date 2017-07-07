@@ -72,9 +72,9 @@ else:
 
     # Request all solutions
     print("List of all possible rulers for length {}:".format(rsize))
-    solver = CpoSolver(mdl, SearchType='DepthFirst', Workers=1, TimeLimit=100) # Parameters needed to avoid duplicate solutions
+    siter = mdl.start_search(SearchType='DepthFirst', Workers=1, TimeLimit=100) # Parameters needed to avoid duplicate solutions
     try:
-        for i, msol in enumerate(solver):
+        for i, msol in enumerate(siter):
             stdout.write(str(i + 1) + ": ")
             for v in marks:
                 stdout.write(" " + str(msol[v]))
