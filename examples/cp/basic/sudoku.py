@@ -15,13 +15,13 @@ See https://en.wikipedia.org/wiki/Sudoku for details
 Please refer to documentation for appropriate setup of solving configuration.
 """
 
-from docplex.cp.model import *
+from docplex.cp.model import CpoModel
 from sys import stdout
 
 
-##############################################################################
-## Problem data
-##############################################################################
+#-----------------------------------------------------------------------------
+# Initialize the problem data
+#-----------------------------------------------------------------------------
 
 # Problem 1 (zero means cell to be filled with appropriate value)
 SUDOKU_PROBLEM_1 = ( (0, 0, 0,  0, 9, 0,  1, 0, 0),
@@ -51,8 +51,46 @@ SUDOKU_PROBLEM_2 = ( (0, 7, 0,  0, 0, 0,  0, 4, 9),
                      (0, 0, 5,  0, 0, 0,  0, 0, 7),
                   )
 
+
+#-----------------------------------------------------------------------------
+# Build the model
+#-----------------------------------------------------------------------------
+
+# Create CPO model
+mdl = CpoModel()
+
 # Grid range
 GRNG = range(9)
+
+# Create grid of variables
+grid = [[mdl.integer_var(min=1, max=9, name="C" + str(l) + str(c)) for l in GRNG] for c in GRNG]
+
+# Add alldiff constraints for lines
+for l in GRNG:
+    mdl.add(mdl.all_diff([grid[l][c] for c in GRNG]))
+
+# Add alldiff constraints for columns
+for c in GRNG:
+    mdl.add(mdl.all_diff([grid[l][c] for l in GRNG]))
+
+# Add alldiff constraints for sub-squares
+ssrng = range(0, 9, 3)
+for sl in ssrng:
+    for sc in ssrng:
+        mdl.add(mdl.all_diff([grid[l][c] for l in range(sl, sl + 3) for c in range(sc, sc + 3)]))
+
+# Initialize known cells
+problem = SUDOKU_PROBLEM_2
+for l in GRNG:
+    for c in GRNG:
+        v = problem[l][c]
+        if v > 0:
+            grid[l][c].set_domain((v, v))
+
+
+#-----------------------------------------------------------------------------
+# Solve the model and display the result
+#-----------------------------------------------------------------------------
 
 def print_grid(grid):
     """ Print Sudoku grid """
@@ -64,44 +102,6 @@ def print_grid(grid):
             stdout.write('   ' if (c % 3 == 0) else ' ')
             stdout.write(str(v) if v > 0 else '.')
         stdout.write('\n')
-
-
-##############################################################################
-## Create model
-##############################################################################
-
-# Create CPO model
-mdl = CpoModel()
-
-# Create grid of variables
-grid = [[integer_var(min=1, max=9, name="C" + str(l) + str(c)) for l in GRNG] for c in GRNG]
-
-# Add alldiff constraints for lines
-for l in GRNG:
-    mdl.add(all_diff([grid[l][c] for c in GRNG]))
-
-# Add alldiff constraints for columns
-for c in GRNG:
-    mdl.add(all_diff([grid[l][c] for l in GRNG]))
-
-# Add alldiff constraints for sub-squares
-ssrng = range(0, 9, 3)
-for sl in ssrng:
-    for sc in ssrng:
-        mdl.add(all_diff([grid[l][c] for l in range(sl, sl + 3) for c in range(sc, sc + 3)]))
-
-# Initialize known cells
-problem = SUDOKU_PROBLEM_2
-for l in GRNG:
-    for c in GRNG:
-        v = problem[l][c]
-        if v > 0:
-            grid[l][c].set_domain((v, v))
-
-
-##############################################################################
-## Solve model
-##############################################################################
 
 # Solve model
 print("\nSolving model....")

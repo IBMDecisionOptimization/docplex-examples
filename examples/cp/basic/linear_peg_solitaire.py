@@ -33,15 +33,21 @@ More information on http://www.cems.uvm.edu/~rsnapp/teaching/cs32/lectures/pegso
 Please refer to documentation for appropriate setup of solving configuration.
 """
 
-from docplex.cp.model import *
+from docplex.cp.model import CpoModel
 from sys import stdout
 
-##############################################################################
-## Model data
-##############################################################################
+
+#-----------------------------------------------------------------------------
+# Initialize the problem data
+#-----------------------------------------------------------------------------
 
 # Number of pegs of each color
 NB_PEGS = 6
+
+
+#-----------------------------------------------------------------------------
+# Prepare the data for modeling
+#-----------------------------------------------------------------------------
 
 # Total number of holes (empty hole in the middle)
 SIZE = 2 * NB_PEGS + 1
@@ -49,7 +55,7 @@ SIZE = 2 * NB_PEGS + 1
 # Required number of moves (see reference document)
 NB_MOVES = NB_PEGS * (NB_PEGS + 2)
 
-# Integer values for hole states
+# Integer values representing hole states
 HOLE = 0
 RED = 1
 BLUE = 2
@@ -58,9 +64,9 @@ BLUE = 2
 PEG_LETTERS = ('.', 'R', 'B')
 
 
-##############################################################################
-## Build model
-##############################################################################
+#-----------------------------------------------------------------------------
+# Build the model
+#-----------------------------------------------------------------------------
 
 # Create model
 mdl = CpoModel()
@@ -68,11 +74,11 @@ mdl = CpoModel()
 # Create sequence of states. Each variable has 3 possible values: 0: Hole, 1: red peg, 2: blue peg
 states = []
 for s in range(NB_MOVES + 1):
-    states.append(integer_var_list(SIZE, HOLE, BLUE, "State_" + str(s) + "_"))
+    states.append(mdl.integer_var_list(SIZE, HOLE, BLUE, "State_" + str(s) + "_"))
 
 # Create variables representing from index and to index for each move
-fromIndex = integer_var_list(NB_MOVES, 0, SIZE - 1, "From_")
-toIndex   = integer_var_list(NB_MOVES, 0, SIZE - 1, "To_")
+fromIndex = mdl.integer_var_list(NB_MOVES, 0, SIZE - 1, "From_")
+toIndex   = mdl.integer_var_list(NB_MOVES, 0, SIZE - 1, "To_")
 
 # Add constraints between each state
 for m in range(NB_MOVES):
@@ -81,18 +87,18 @@ for m in range(NB_MOVES):
     fromState = states[m]
     toState = states[m + 1]
     # Constrain location of holes
-    mdl.add(element(fromState, tvar) == HOLE)
+    mdl.add(mdl.element(fromState, tvar) == HOLE)
     # Constrain move size and direction
     delta = tvar - fvar
-    mdl.add(allowed_assignments(delta, [-2, -1, 1, 2]))
-    peg = element(fromState, fvar)
+    mdl.add(mdl.allowed_assignments(delta, [-2, -1, 1, 2]))
+    peg = mdl.element(fromState, fvar)
     mdl.add( ((peg == RED) & (delta > 0)) | ((peg == BLUE) & (delta < 0)) )
     # Make moves
-    mdl.add(element(toState, tvar) == element(fromState, fvar))
-    mdl.add(element(toState, fvar) == HOLE)
+    mdl.add(mdl.element(toState, tvar) == mdl.element(fromState, fvar))
+    mdl.add(mdl.element(toState, fvar) == HOLE)
     # Force equality of other positions
     for p in range(SIZE):
-        mdl.add(if_then((p != fvar) & (p != tvar), fromState[p] == toState[p]))
+        mdl.add(mdl.if_then((p != fvar) & (p != tvar), fromState[p] == toState[p]))
 
 # Set initial position
 for p in range(NB_PEGS):
@@ -108,12 +114,11 @@ for p in range(NB_PEGS):
 mdl.add(expr)
 
 
-##############################################################################
-## Solve model
-##############################################################################
+#-----------------------------------------------------------------------------
+# Solve the model and display the result
+#-----------------------------------------------------------------------------
 
 # Solve model
-#mdl.export_as_cpo(srcloc=False)
 print("Solving model....")
 msol = mdl.solve(TimeLimit=50)
 

@@ -13,13 +13,13 @@ each occurring exactly once in each row and exactly once in each column.
 Please refer to documentation for appropriate setup of solving configuration.
 """
 
-from docplex.cp.model import *
+from docplex.cp.model import CpoModel
 from sys import stdout
 
 
-##############################################################################
-## Model data
-##############################################################################
+#-----------------------------------------------------------------------------
+# Initialize the problem data
+#-----------------------------------------------------------------------------
 
 # Size of the cube
 CUBE_SIZE = 4
@@ -27,70 +27,71 @@ CUBE_SIZE = 4
 # Indicate to constrain each square diagonal with all different symbols
 CONSTRAIN_DIAGONALS = True
 
-##############################################################################
-## Create model
-##############################################################################
+
+#-----------------------------------------------------------------------------
+# Build the model
+#-----------------------------------------------------------------------------
 
 # Create CPO model
 mdl = CpoModel()
 
 # Create grid of variables
 GRNG = range(CUBE_SIZE)
-grid = [[[integer_var(min=0, max=CUBE_SIZE - 1, name="C_" + str(x) + '_' + str(y) + '_' + str(z)) for x in GRNG] for y in GRNG] for z in GRNG]
+grid = [[[mdl.integer_var(min=0, max=CUBE_SIZE - 1, name="C_{}_{}_{}".format(x, y, z)) for x in GRNG] for y in GRNG] for z in GRNG]
 
 # Add constraints for each slice on direction x
 for x in GRNG:
     # Add alldiff constraints for lines
     for l in GRNG:
-        mdl.add(all_diff([grid[x][l][c] for c in GRNG]))
+        mdl.add(mdl.all_diff([grid[x][l][c] for c in GRNG]))
 
     # Add alldiff constraints for columns
     for c in GRNG:
-        mdl.add(all_diff([grid[x][l][c] for l in GRNG]))
+        mdl.add(mdl.all_diff([grid[x][l][c] for l in GRNG]))
 
     # Add alldiff constraints for diagonals
     if CONSTRAIN_DIAGONALS:
-        mdl.add(all_diff([grid[x][l][l] for l in GRNG]))
-        mdl.add(all_diff([grid[x][l][CUBE_SIZE - l - 1] for l in GRNG]))
+        mdl.add(mdl.all_diff([grid[x][l][l] for l in GRNG]))
+        mdl.add(mdl.all_diff([grid[x][l][CUBE_SIZE - l - 1] for l in GRNG]))
 
 # Add constraints for each slice on direction y
 for y in GRNG:
     # Add alldiff constraints for lines
     for l in GRNG:
-        mdl.add(all_diff([grid[l][y][c] for c in GRNG]))
+        mdl.add(mdl.all_diff([grid[l][y][c] for c in GRNG]))
 
     # Add alldiff constraints for columns
     for c in GRNG:
-        mdl.add(all_diff([grid[l][y][c] for l in GRNG]))
+        mdl.add(mdl.all_diff([grid[l][y][c] for l in GRNG]))
 
     # Add alldiff constraints for diagonals
     if CONSTRAIN_DIAGONALS:
-        mdl.add(all_diff([grid[l][y][l] for l in GRNG]))
-        mdl.add(all_diff([grid[l][y][CUBE_SIZE - l - 1] for l in GRNG]))
+        mdl.add(mdl.all_diff([grid[l][y][l] for l in GRNG]))
+        mdl.add(mdl.all_diff([grid[l][y][CUBE_SIZE - l - 1] for l in GRNG]))
 
 # Add constraints for each slice on direction z
 for z in GRNG:
     # Add alldiff constraints for lines
     for l in GRNG:
-        mdl.add(all_diff([grid[l][c][z] for c in GRNG]))
+        mdl.add(mdl.all_diff([grid[l][c][z] for c in GRNG]))
 
     # Add alldiff constraints for columns
     for c in GRNG:
-        mdl.add(all_diff([grid[l][c][z] for l in GRNG]))
+        mdl.add(mdl.all_diff([grid[l][c][z] for l in GRNG]))
 
     # Add alldiff constraints for diagonals
     if CONSTRAIN_DIAGONALS:
-        mdl.add(all_diff([grid[l][l][z] for l in GRNG]))
-        mdl.add(all_diff([grid[l][CUBE_SIZE - l - 1][z] for l in GRNG]))
+        mdl.add(mdl.all_diff([grid[l][l][z] for l in GRNG]))
+        mdl.add(mdl.all_diff([grid[l][CUBE_SIZE - l - 1][z] for l in GRNG]))
 
 # Force first line to natural sequence
 for c in GRNG:
     mdl.add(grid[0][0][c] == c)
 
 
-##############################################################################
-## Solve model
-##############################################################################
+#-----------------------------------------------------------------------------
+# Solve the model and display the result
+#-----------------------------------------------------------------------------
 
 # Solve model
 print("\nSolving model....")

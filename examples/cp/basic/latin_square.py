@@ -19,49 +19,49 @@ More information is available on https://en.wikipedia.org/wiki/Latin_square
 Please refer to documentation for appropriate setup of solving configuration.
 """
 
-from docplex.cp.model import *
+from docplex.cp.model import CpoModel
 from sys import stdout
 
 
-##############################################################################
-## Model data
-##############################################################################
+#-----------------------------------------------------------------------------
+# Initialize the problem data
+#-----------------------------------------------------------------------------
 
 # Size of the square
 SQUARE_SIZE = 16
 
 
-##############################################################################
-## Create model
-##############################################################################
+#-----------------------------------------------------------------------------
+# Build the model
+#-----------------------------------------------------------------------------
 
 # Create CPO model
 mdl = CpoModel()
 
 # Create grid of variables
 GRNG = range(SQUARE_SIZE)
-grid = [[integer_var(min=0, max=SQUARE_SIZE - 1, name="C_" + str(l) + '_' + str(c)) for l in GRNG] for c in GRNG]
+grid = [[mdl.integer_var(min=0, max=SQUARE_SIZE - 1, name="C_{}_{}".format(l, c)) for l in GRNG] for c in GRNG]
 
 # Add alldiff constraints for lines
 for l in GRNG:
-    mdl.add(all_diff([grid[l][c] for c in GRNG]))
+    mdl.add(mdl.all_diff([grid[l][c] for c in GRNG]))
 
 # Add alldiff constraints for columns
 for c in GRNG:
-    mdl.add(all_diff([grid[l][c] for l in GRNG]))
+    mdl.add(mdl.all_diff([grid[l][c] for l in GRNG]))
 
 # Add alldiff constraints for diagonals
-mdl.add(all_diff([grid[l][l] for l in GRNG]))
-mdl.add(all_diff([grid[l][SQUARE_SIZE - l - 1] for l in GRNG]))
+mdl.add(mdl.all_diff([grid[l][l] for l in GRNG]))
+mdl.add(mdl.all_diff([grid[l][SQUARE_SIZE - l - 1] for l in GRNG]))
 
 # Force first line to natural sequence
 for c in GRNG:
     mdl.add(grid[0][c] == c)
 
 
-##############################################################################
-## Solve model
-##############################################################################
+#-----------------------------------------------------------------------------
+# Solve the model and display the result
+#-----------------------------------------------------------------------------
 
 # Solve model
 print("\nSolving model....")

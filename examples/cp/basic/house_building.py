@@ -13,18 +13,19 @@ skill level to the tasks.
 Please refer to documentation for appropriate setup of solving configuration.
 """
 
+from docplex.cp.model import CpoModel
 from collections import namedtuple
 
-from docplex.cp.model import *
 
-##############################################################################
-# Data
-##############################################################################
+#-----------------------------------------------------------------------------
+# Initialize the problem data
+#-----------------------------------------------------------------------------
 
-# Planning contains the number of houses and the max amount of periods for our schedule
-PLANNING = (5, 318)
+# Number of Houses to build
+NB_HOUSES = 5
 
-HOUSES = range(1, PLANNING[0] + 1)
+# Max number of periods for the schedule
+MAX_SCHEDULE = 318
 
 # House construction tasks
 Task = (namedtuple("Task", ["name", "duration"]))
@@ -59,9 +60,6 @@ TASK_PRECEDENCES = {TaskPrecedence("masonry",   "carpentry"),
                    }
 
 
-# Workers Names
-WORKERS = {"Joe", "Jack", "Jim"}
-
 # Workers Name and level for each of there skill
 Skill = (namedtuple("Skill", ["worker", "task", "level"]))
 SKILLS = {Skill("Joe",  "masonry",   9),
@@ -95,9 +93,9 @@ CONTINUITIES = {Continuity("Joe",  "masonry",   "carpentry"),
                }
 
 
-##############################################################################
-# Useful function
-##############################################################################
+#-----------------------------------------------------------------------------
+# Prepare the data for modeling
+#-----------------------------------------------------------------------------
 
 # Find_tasks: return the task it refers to in the Tasks vector
 def find_tasks(name):
@@ -107,10 +105,16 @@ def find_tasks(name):
 def find_skills(worker, task):
     return next(s for s in SKILLS if (s.worker == worker) and (s.task == task))
 
+# Iterator on houses numbers
+HOUSES = range(1, NB_HOUSES + 1)
 
-##############################################################################
-# Modeling
-##############################################################################
+# Build the list of all worker names
+WORKERS = set(sk.worker for sk in SKILLS)
+
+
+#-----------------------------------------------------------------------------
+# Build the model
+#-----------------------------------------------------------------------------
 
 # Create model
 mdl = CpoModel()
@@ -120,44 +124,39 @@ tasks = {}   # dict of interval variable for each house and task
 wtasks = {}  # dict of interval variable for each house and skill
 for house in HOUSES:
     for task in TASKS:
-        v = (0, PLANNING[1])
-        tasks[(house, task)] = interval_var(v, v, size=task.duration, name="house {} task {}".format(house, task))
+        v = (0, MAX_SCHEDULE)
+        tasks[(house, task)] = mdl.interval_var(v, v, size=task.duration, name="house {} task {}".format(house, task))
     for task in SKILLS:
-        wtasks[(house, task)] = interval_var(optional=True, name="house {} skill {}".format(house, task))
+        wtasks[(house, task)] = mdl.interval_var(optional=True, name="house {} skill {}".format(house, task))
 
 # Maximization objective of the model
-obj2 = sum([s.level * presence_of(wtasks[(h, s)]) for s in SKILLS for h in HOUSES])
-mdl.add(maximize(obj2))
+obj2 = mdl.sum([s.level * mdl.presence_of(wtasks[(h, s)]) for s in SKILLS for h in HOUSES])
+mdl.add(mdl.maximize(obj2))
 
 # Constraints of the model
 for h in HOUSES:
     # Temporal constraints
     for p in TASK_PRECEDENCES:
-        mdl.add(end_before_start(tasks[(h, find_tasks(p.beforeTask))], tasks[(h, find_tasks(p.afterTask))]))
+        mdl.add(mdl.end_before_start(tasks[(h, find_tasks(p.beforeTask))], tasks[(h, find_tasks(p.afterTask))]))
     # Alternative workers
     for t in TASKS:
-        mdl.add(alternative(tasks[(h, t)], [wtasks[(h, s)] for s in SKILLS if (s.task == t.name)], 1))
+        mdl.add(mdl.alternative(tasks[(h, t)], [wtasks[(h, s)] for s in SKILLS if (s.task == t.name)], 1))
     # Continuity constraints
     for c in CONTINUITIES:
-        mdl.add(presence_of(wtasks[(h, find_skills(c.worker, c.task1))]) == presence_of(
-            wtasks[(h, find_skills(c.worker, c.task2))]))
+        mdl.add(mdl.presence_of(wtasks[(h, find_skills(c.worker, c.task1))]) ==
+                mdl.presence_of(wtasks[(h, find_skills(c.worker, c.task2))]))
 
 # No overlap constraint
 for w in WORKERS:
-    mdl.add(no_overlap([wtasks[(h, s)] for h in HOUSES for s in SKILLS if s.worker == w]))
+    mdl.add(mdl.no_overlap([wtasks[(h, s)] for h in HOUSES for s in SKILLS if s.worker == w]))
 
 
-##############################################################################
-# Model solving
-##############################################################################
+#-----------------------------------------------------------------------------
+# Solve the model and display the result
+#-----------------------------------------------------------------------------
 
 print("\nSolving model....")
 msol = mdl.solve(TimeLimit=20, trace_log=False)
-
-
-##############################################################################
-# Display solution
-##############################################################################
 
 # Print solution
 print("Solve status: " + msol.get_solve_status())

@@ -23,22 +23,37 @@ Please refer to documentation for appropriate setup of solving configuration.
 """
 
 
-from docplex.cp.model import *
-from sys import stdout
+from docplex.cp.model import CpoModel
 
-# Set model parameters
-ORDER = 5        # Number of marks
-MAX_LENGTH = 10  # Max rule length, voluntarily TOO SHORT
+#-----------------------------------------------------------------------------
+# Initialize the problem data
+#-----------------------------------------------------------------------------
+
+# Number of marks on the ruler
+ORDER = 5
+
+
+#-----------------------------------------------------------------------------
+# Prepare the data for modeling (Voluntarily wrong)
+#-----------------------------------------------------------------------------
+
+# Estimate an upper bound to the ruler length
+MAX_LENGTH = 10  # TOO SHORT
+
+
+#-----------------------------------------------------------------------------
+# Build the model
+#-----------------------------------------------------------------------------
 
 # Create model
 mdl = CpoModel()
 
 # Create array of variables corresponding to position rule marks
-marks = integer_var_list(ORDER, 0, MAX_LENGTH, "M")
+marks = mdl.integer_var_list(ORDER, 0, MAX_LENGTH, "M")
 
 # Create marks distances that should be all different
 dist = [marks[i] - marks[j] for i in range(1, ORDER) for j in range(0, i)]
-mdl.add(all_diff(dist))
+mdl.add(mdl.all_diff(dist))
 
 # Avoid symmetric solutions by ordering marks
 mdl.add(marks[0] == 0)
@@ -49,17 +64,17 @@ for i in range(1, ORDER):
 mdl.add((marks[1] - marks[0]) < (marks[ORDER - 1] - marks[ORDER - 2]))
 
 # Minimize ruler size (position of the last mark)
-minexpr = minimize(marks[ORDER - 1])
-mdl.add(minexpr)
+mdl.add(mdl.minimize(marks[ORDER - 1]))
+
+
+#-----------------------------------------------------------------------------
+# Solve the model and display the result
+#-----------------------------------------------------------------------------
 
 # First solve the model
-solver = CpoSolver(mdl)
-msol = solver.solve()
+msol = mdl.solve()
 if msol:
     msol.print_solution()
 else:
-    try:
-        rsol = solver.refine_conflict()
-        rsol.print_conflict()
-    except CpoNotSupportedException:
-        print("The configured solver agent does not support conflict refiner.")
+    rsol = mdl.refine_conflict()
+    rsol.print_conflict()

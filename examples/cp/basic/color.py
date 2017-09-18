@@ -14,18 +14,18 @@ Belgium, Denmark, France, Germany, Luxembourg, and the Netherlands.
 Please refer to documentation for appropriate setup of solving configuration.
 """
 
-from docplex.cp.model import *
+from docplex.cp.model import CpoModel
 
 # Create CPO model
 mdl = CpoModel()
 
 # Create model variables containing colors of the countries
-Belgium     = integer_var(0, 3, "Belgium")
-Denmark     = integer_var(0, 3, "Denmark")
-France      = integer_var(0, 3, "France")
-Germany     = integer_var(0, 3, "Germany")
-Luxembourg  = integer_var(0, 3, "Luxembourg")
-Netherlands = integer_var(0, 3, "Netherlands")
+Belgium     = mdl.integer_var(0, 3, "Belgium")
+Denmark     = mdl.integer_var(0, 3, "Denmark")
+France      = mdl.integer_var(0, 3, "France")
+Germany     = mdl.integer_var(0, 3, "Germany")
+Luxembourg  = mdl.integer_var(0, 3, "Luxembourg")
+Netherlands = mdl.integer_var(0, 3, "Netherlands")
 ALL_COUNTRIES = (Belgium, Denmark, France, Germany, Luxembourg, Netherlands)
         
 # Create constraints

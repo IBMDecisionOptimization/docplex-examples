@@ -29,21 +29,23 @@ CP Optimizer first extends the solution to all variables and then starts to impr
 Please refer to documentation for appropriate setup of solving configuration.
 """
 
-from docplex.cp.model import *
+from docplex.cp.model import CpoModel
+from docplex.cp.solution import CpoModelSolution
 from collections import deque
+import os
 
-##############################################################################
-# Initialize model data
-##############################################################################
+#-----------------------------------------------------------------------------
+# Initialize the problem data
+#-----------------------------------------------------------------------------
 
-# Read data from file
+# Read problem data from a file and convert it as a list of integers
 filename = os.path.dirname(os.path.abspath(__file__)) + "/data/plant_location.data"
 data = deque()
 with open(filename, "r") as file:
     for val in file.read().split():
         data.append(int(val))
 
-# Initialize main dimensions
+# Read number of customers and locations
 nbCustomer = data.popleft()
 nbLocation = data.popleft()
 
@@ -60,38 +62,38 @@ fixedCost = list([data.popleft() for p in range(nbLocation)])
 capacity = list([data.popleft() for p in range(nbLocation)])
 
 
-##############################################################################
-# Create the model
-##############################################################################
+#-----------------------------------------------------------------------------
+# Build the model
+#-----------------------------------------------------------------------------
 
 mdl = CpoModel()
 
 # Create variables identifying which location serves each customer
-cust = integer_var_list(nbCustomer, 0, nbLocation - 1, "CustomerLocation")
+cust = mdl.integer_var_list(nbCustomer, 0, nbLocation - 1, "CustomerLocation")
 
 # Create variables indicating which plant location is open
-open = integer_var_list(nbLocation, 0, 1, "OpenLocation")
+open = mdl.integer_var_list(nbLocation, 0, 1, "OpenLocation")
 
 # Create variables indicating load of each plant
-load = [integer_var(0, capacity[p], "PlantLoad_" + str(p)) for p in range(nbLocation)]
+load = [mdl.integer_var(0, capacity[p], "PlantLoad_" + str(p)) for p in range(nbLocation)]
 
 # Associate plant openness to its load
 for p in range(nbLocation):
       mdl.add(open[p] == (load[p] > 0))
 
 # Add constraints
-mdl.add(pack(load, cust, demand))
+mdl.add(mdl.pack(load, cust, demand))
 
 # Add objective
-obj = scal_prod(fixedCost, open)
+obj = mdl.scal_prod(fixedCost, open)
 for c in range(nbCustomer):
-    obj += element(cust[c], cost[c])
-mdl.add(minimize(obj))
+    obj += mdl.element(cust[c], cost[c])
+mdl.add(mdl.minimize(obj))
 
 
-##############################################################################
-# Solve the model
-##############################################################################
+#-----------------------------------------------------------------------------
+# Solve the model and display the result
+#-----------------------------------------------------------------------------
 
 # Solve without starting point
 print("Solve the model with no starting point")

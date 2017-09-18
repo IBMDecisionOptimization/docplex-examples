@@ -19,14 +19,13 @@ See https://en.wikipedia.org/wiki/Hitori
 Please refer to documentation for appropriate setup of solving configuration.
 """
 
-from docplex.cp.model import *
+from docplex.cp.model import CpoModel
 from sys import stdout
-import copy
 
 
-##############################################################################
-## Problem data
-##############################################################################
+#-----------------------------------------------------------------------------
+# Initialize the problem data
+#-----------------------------------------------------------------------------
 
 # Problem 0 (for test). A solution is:
 #   * 2 *
@@ -88,21 +87,17 @@ HITORI_PROBLEM_3 = ( ( 2,  5,  6,  3,  8, 10,  7,  4, 13,  6, 14, 15,  9,  4,  1
                    )
 
 
+#-----------------------------------------------------------------------------
+# Prepare the data for modeling
+#-----------------------------------------------------------------------------
+
 PUZZLE = HITORI_PROBLEM_3
 SIZE = len(PUZZLE)
 
-##############################################################################
-## Utilities
-##############################################################################
 
-def print_grid(grid):
-    """ Print Hitori grid """
-    mxlen = max([len(str(grid[l][c])) for l in range(SIZE) for c in range(SIZE)])
-    frmt = " {:>" + str(mxlen) + "}"
-    for l in grid:
-        for v in l:
-            stdout.write(frmt.format(v))
-        stdout.write('\n')
+#-----------------------------------------------------------------------------
+# Build the model
+#-----------------------------------------------------------------------------
 
 def get_neighbors(l, c):
     """ Build the list of neighbors of a given cell """
@@ -113,25 +108,11 @@ def get_neighbors(l, c):
     if l < SIZE - 1: res.append((l+1, c))
     return res
 
-def conditional(c, t, e):
-    """ Build a conditional expression
-    Args:
-        c: Condition expression
-        t: Expression to return if condition is true
-        e: Expression to return if expression is false
-    """
-    return element(c, [e, t])
-
-
-##############################################################################
-## Create model
-##############################################################################
-
-# Create CPO model
+# Create model
 mdl = CpoModel()
 
 # Create one binary variable for each colored cell
-color = [[integer_var(min=0, max=1, name="C" + str(l) + "_" + str(c)) for c in range(SIZE)] for l in range(SIZE)]
+color = [[mdl.integer_var(min=0, max=1, name="C" + str(l) + "_" + str(c)) for c in range(SIZE)] for l in range(SIZE)]
 
 # Forbid adjacent colored cells
 for l in range(SIZE):
@@ -155,7 +136,7 @@ for l in range(SIZE):
             # Add constraint if more than one occurrence of the value
             nbocc = len(lvars)
             if nbocc > 1:
-                mdl.add(sum(lvars) >= nbocc - 1)
+                mdl.add(mdl.sum(lvars) >= nbocc - 1)
 for c in range(SIZE):
     lvals = []  # List of values already processed
     for l in range(SIZE):
@@ -169,26 +150,26 @@ for c in range(SIZE):
             # Add constraint if more than one occurrence of the value
             nbocc = len(lvars)
             if nbocc > 1:
-                mdl.add(sum(lvars) >= nbocc - 1)
+                mdl.add(mdl.sum(lvars) >= nbocc - 1)
 
 # Each cell (blank or not) must be adjacent to at least another
 for l in range(SIZE):
     for c in range(SIZE):
         lvars = [color[l2][c2] for l2, c2 in get_neighbors(l, c)]
-        mdl.add(sum(lvars) < len(lvars))
+        mdl.add(mdl.sum(lvars) < len(lvars))
 
 # At least cell 0,0 or cell 0,1 is blank.
 # Build table of distance to one of these cells
 # Black cells are associated to a max distance SIZE*SIZE
 MAX_DIST = SIZE * SIZE
-distance = [[integer_var(min=0, max=MAX_DIST, name="D" + str(l) + "_" + str(c)) for c in range(SIZE)] for l in range(SIZE)]
-mdl.add(distance[0][0] == conditional(color[0][0], MAX_DIST, 0))
-mdl.add(distance[0][1] == conditional(color[0][1], MAX_DIST, 0))
+distance = [[mdl.integer_var(min=0, max=MAX_DIST, name="D" + str(l) + "_" + str(c)) for c in range(SIZE)] for l in range(SIZE)]
+mdl.add(distance[0][0] == mdl.conditional(color[0][0], MAX_DIST, 0))
+mdl.add(distance[0][1] == mdl.conditional(color[0][1], MAX_DIST, 0))
 for c in range(2, SIZE):
-    mdl.add( distance[0][c] == conditional(color[0][c], MAX_DIST, 1 + min(distance[l2][c2] for l2, c2 in get_neighbors(0, c))) )
+    mdl.add( distance[0][c] == mdl.conditional(color[0][c], MAX_DIST, 1 + mdl.min(distance[l2][c2] for l2, c2 in get_neighbors(0, c))) )
 for l in range(1, SIZE):
     for c in range(SIZE):
-        mdl.add( distance[l][c] == conditional(color[l][c], MAX_DIST, 1 + min(distance[l2][c2] for l2, c2 in get_neighbors(l, c))) )
+        mdl.add( distance[l][c] == mdl.conditional(color[l][c], MAX_DIST, 1 + mdl.min(distance[l2][c2] for l2, c2 in get_neighbors(l, c))) )
 
 # Force distance of blank cells to be less than max
 for l in range(SIZE):
@@ -196,9 +177,18 @@ for l in range(SIZE):
         mdl.add((color[l][c] > 0) | (distance[l][c] < MAX_DIST))
 
 
-##############################################################################
-## Solve model
-##############################################################################
+#-----------------------------------------------------------------------------
+# Solve the model and display the result
+#-----------------------------------------------------------------------------
+
+def print_grid(grid):
+    """ Print Hitori grid """
+    mxlen = max([len(str(grid[l][c])) for l in range(SIZE) for c in range(SIZE)])
+    frmt = " {:>" + str(mxlen) + "}"
+    for l in grid:
+        for v in l:
+            stdout.write(frmt.format(v))
+        stdout.write('\n')
 
 # Solve model
 print("\nSolving model....")

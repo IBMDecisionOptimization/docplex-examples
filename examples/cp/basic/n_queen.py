@@ -18,27 +18,41 @@ See https://en.wikipedia.org/wiki/Eight_queens_puzzle for more information.
 Please refer to documentation for appropriate setup of solving configuration.
 """
 
-from docplex.cp.model import *
+from docplex.cp.model import CpoModel
 from sys import stdout
+
+#-----------------------------------------------------------------------------
+# Initialize the problem data
+#-----------------------------------------------------------------------------
 
 # Set model parameters
 NB_QUEEN = 8
+
+
+#-----------------------------------------------------------------------------
+# Build the model
+#-----------------------------------------------------------------------------
 
 # Create model
 mdl = CpoModel()
 
 # Create column index of each queen
-x = integer_var_list(NB_QUEEN, 0, NB_QUEEN - 1, "X")
+x = mdl.integer_var_list(NB_QUEEN, 0, NB_QUEEN - 1, "X")
 
 # One queen per raw
-mdl.add(all_diff(x))
+mdl.add(mdl.all_diff(x))
 
 # One queen per diagonal xi - xj != i - j
-mdl.add(all_diff(x[i] + i for i in range(NB_QUEEN)))
+mdl.add(mdl.all_diff(x[i] + i for i in range(NB_QUEEN)))
 
 # One queen per diagonal xi - xj != j - i
-mdl.add(all_diff(x[i] - i for i in range(NB_QUEEN)))
-    
+mdl.add(mdl.all_diff(x[i] - i for i in range(NB_QUEEN)))
+
+
+#-----------------------------------------------------------------------------
+# Solve the model and display the result
+#-----------------------------------------------------------------------------
+
 # Solve model
 print("Solving model....")
 msol = mdl.solve(TimeLimit=10)

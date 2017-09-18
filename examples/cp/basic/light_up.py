@@ -24,13 +24,13 @@ Examples taken from https://www.brainbashers.com and https://en.wikipedia.org.
 Please refer to documentation for appropriate setup of solving configuration.
 """
 
-from docplex.cp.model import *
+from docplex.cp.model import CpoModel
 from sys import stdout
 
 
-##############################################################################
-## Problem data
-##############################################################################
+#-----------------------------------------------------------------------------
+# Initialize the problem data
+#-----------------------------------------------------------------------------
 
 # Each problem is expressed as a list of strings, each one representing a line of the puzzle.
 # Character may be:
@@ -81,20 +81,14 @@ LIGHT_UP_PROBLEM_3 = ("    X     X   1     ",
 
 PUZZLE = LIGHT_UP_PROBLEM_3
 
-##############################################################################
-## Utilities
-##############################################################################
 
+#-----------------------------------------------------------------------------
+# Prepare the data for modeling
+#-----------------------------------------------------------------------------
+
+# Retrieve size of the grid
 WIDTH = len(PUZZLE[0])
 HEIGHT = len(PUZZLE)
-
-def print_grid(grid):
-    """ Print grid """
-    for l in grid:
-        stdout.write('|')
-        for v in l:
-            stdout.write(" " + str(v))
-        stdout.write(' |\n')
 
 def get_neighbors(l, c):
     """ Build the list of neighbors of a given cell """
@@ -149,26 +143,16 @@ def get_down_empty_count(l, c):
         res += 1
     return res
 
-def conditional(c, t, e):
-    """ Build a conditional expression
-    Args:
-        c: Condition expression
-        t: Expression to return if condition is true
-        e: Expression to return if expression is false
-    """
-    return element(c, [e, t])
 
-
-##############################################################################
-## Create model
-##############################################################################
-
+#-----------------------------------------------------------------------------
+# Build the model
+#-----------------------------------------------------------------------------
 
 # Create CPO model
 mdl = CpoModel()
 
 # Create one binary variable for presence of bulbs in cells
-bulbs = [[integer_var(min=0, max=1, name="C" + str(l) + "_" + str(c)) for c in range(WIDTH)] for l in range(HEIGHT)]
+bulbs = [[mdl.integer_var(min=0, max=1, name="C{}_{}".format(l, c)) for c in range(WIDTH)] for l in range(HEIGHT)]
 
 # Force number of bulbs in black cells to zero
 for l in range(HEIGHT):
@@ -181,7 +165,7 @@ for l in range(HEIGHT):
     for c in range(WIDTH):
         v = PUZZLE[l][c]
         if v.isdigit():
-            mdl.add(sum(bulbs[l2][c2] for l2, c2 in get_neighbors(l, c)) == int(v))
+            mdl.add(mdl.sum(bulbs[l2][c2] for l2, c2 in get_neighbors(l, c)) == int(v))
 
 # Avoid multiple bulbs on adjacent empty cells
 for l in range(HEIGHT):
@@ -189,33 +173,39 @@ for l in range(HEIGHT):
     while c < WIDTH:
         nbc = get_right_empty_count(l, c)
         if nbc > 1:
-            mdl.add(sum(bulbs[l][c2] for c2 in range(c, c + nbc)) <= 1)
+            mdl.add(mdl.sum(bulbs[l][c2] for c2 in range(c, c + nbc)) <= 1)
         c += nbc
 for c in range(WIDTH):
     l = 0
     while l < HEIGHT:
         nbc = get_down_empty_count(l, c)
         if nbc > 1:
-            mdl.add(sum(bulbs[l2][c] for l2 in range(l, l + nbc)) <= 1)
+            mdl.add(mdl.sum(bulbs[l2][c] for l2 in range(l, l + nbc)) <= 1)
         l += nbc
 
 # Each empty cell must be lighten by at least one bulb
 for l in range(HEIGHT):
     for c in range(WIDTH):
         if PUZZLE[l][c] == ' ':
-            mdl.add(sum(bulbs[l2][c2] for l2, c2 in get_all_visible(l, c)) > 0)
+            mdl.add(mdl.sum(bulbs[l2][c2] for l2, c2 in get_all_visible(l, c)) > 0)
 
 # Minimize the total number of bulbs
-nbbulbs = integer_var(0, HEIGHT * WIDTH, name="NbBulbs")
+nbbulbs = mdl.integer_var(0, HEIGHT * WIDTH, name="NbBulbs")
 mdl.add(nbbulbs == sum(bulbs[l][c] for c in range(WIDTH) for l in range(HEIGHT)))
-mdl.add(minimize(nbbulbs))
+mdl.add(mdl.minimize(nbbulbs))
 
-##############################################################################
-## Solve model
-##############################################################################
 
-# Print CPO model
-#mdl.export_as_cpo(srcloc=True)
+#-----------------------------------------------------------------------------
+# Solve the model and display the result
+#-----------------------------------------------------------------------------
+
+def print_grid(grid):
+    """ Print grid """
+    for l in grid:
+        stdout.write('|')
+        for v in l:
+            stdout.write(" " + str(v))
+        stdout.write(' |\n')
 
 # Solve model
 print("\nSolving model....")
