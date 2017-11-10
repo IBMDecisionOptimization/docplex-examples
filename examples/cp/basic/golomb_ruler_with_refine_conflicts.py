@@ -73,8 +73,9 @@ mdl.add(mdl.minimize(marks[ORDER - 1]))
 
 # First solve the model
 msol = mdl.solve()
-if msol:
-    msol.print_solution()
-else:
+# if msol:
+#     msol.print_solution()
+# else:
+if True:
     rsol = mdl.refine_conflict()
     rsol.print_conflict()

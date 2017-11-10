@@ -9,6 +9,10 @@ from collections import namedtuple
 from docplex.mp.model import Model
 from docplex.util.environment import get_environment
 
+
+# ----------------------------------------------------------------------------
+# Initialize the problem data
+# ----------------------------------------------------------------------------
 nbs = (8, 1, 1)
 
 team_div1 = {"Baltimore Ravens", "Cincinnati Bengals", "Cleveland Browns",
@@ -28,6 +32,9 @@ team_div2 = {"Chicago Bears", "Detroit Lions", "Green Bay Packers",
 Match = namedtuple("Matches", ["team1", "team2", "is_divisional"])
 
 
+# ----------------------------------------------------------------------------
+# Build the model
+# ----------------------------------------------------------------------------
 def build_sports(context=None):
     print("* building sport scheduling model instance")
     mdl = Model('sportSchedCPLEX', context=context)
@@ -113,6 +120,9 @@ def print_sports_solution(mdl):
         print("    {0:s}{1} will meet the {2}".format("*" if s.is_divisional else "", s.team1, s.team2))
 
 
+# ----------------------------------------------------------------------------
+# Solve the model and display the result
+# ----------------------------------------------------------------------------
 if __name__ == '__main__':
     """DOcplexcloud credentials can be specified with url and api_key in the code block below.
 

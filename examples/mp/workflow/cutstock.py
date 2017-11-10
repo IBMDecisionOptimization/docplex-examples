@@ -10,8 +10,10 @@ import json
 from docplex.util.environment import get_environment
 from docplex.mp.model import Model
 
-# ------------------------------
 
+# ----------------------------------------------------------------------------
+# Initialize the problem data
+# ----------------------------------------------------------------------------
 DEFAULT_ROLL_WIDTH = 110
 DEFAULT_ITEMS = [(1, 20, 48), (2, 45, 35), (3, 50, 24), (4, 55, 10), (5, 75, 8)]
 DEFAULT_PATTERNS = [(i, 1) for i in range(1, 6)]  # (1, 1), (2, 1) etc
@@ -20,6 +22,9 @@ DEFAULT_PATTERN_ITEM_FILLED = [(p, p, 1) for p in range(1, 6)]  # pattern1 for i
 FIRST_GENERATION_DUALS = [1, 1, 1, 1, 0]
 
 
+# ----------------------------------------------------------------------------
+# Build the model
+# ----------------------------------------------------------------------------
 class TItem(object):
     def __init__(self, item_id, item_size, demand):
         self.id = item_id
@@ -119,9 +124,9 @@ def make_custstock_master_model(item_table, pattern_table, fill_table, roll_widt
 
 def add_pattern_to_master_model(master_model, item_usages):
     """ Adds a new pattern to the master model.
-    
+
     This function performs the following:
-    
+
     1. build a new pattern instance from item usages (taken from sub-model)
     2. add it to the master model
     3. update decision objects with this new pattern.
@@ -217,7 +222,7 @@ def cutstock_solve(item_table, pattern_table, fill_table, roll_width, **kwargs):
             duals = master_model.dual_values(master_model.item_fill_cts)
             if verbose:
                 print('{0}> moving duals from master to sub model: {1}'
-                      .format(loop_count, map(lambda x: float('%0.2f' % x), duals)))
+                      .format(loop_count, list(map(lambda x: float('%0.2f' % x), duals))))
             cutstock_update_duals(gen_model, duals)
             gs = gen_model.solve(**kwargs)
             if not gs:
@@ -257,6 +262,9 @@ def cutstock_solve_default(**kwargs):
                           **kwargs)
 
 
+#-----------------------------------------------------------------------------
+# Solve the model and display the result
+#-----------------------------------------------------------------------------
 if __name__ == '__main__':
     """DOcplexcloud credentials can be specified with url and api_key in the code block below.
 

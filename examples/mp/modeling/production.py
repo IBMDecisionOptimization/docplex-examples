@@ -17,6 +17,28 @@ from docplex.mp.model import Model
 from docplex.util.environment import get_environment
 
 
+# ----------------------------------------------------------------------------
+# Initialize the problem data
+# ----------------------------------------------------------------------------
+PRODUCTS = [("kluski", 100, 0.6, 0.8),
+            ("capellini", 200, 0.8, 0.9),
+            ("fettucine", 300, 0.3, 0.4)]
+
+# resources are a list of simple tuples (name, capacity)
+RESOURCES = [("flour", 20),
+             ("eggs", 40)]
+
+CONSUMPTIONS = {("kluski", "flour"): 0.5,
+                ("kluski", "eggs"): 0.2,
+                ("capellini", "flour"): 0.4,
+                ("capellini", "eggs"): 0.4,
+                ("fettucine", "flour"): 0.3,
+                ("fettucine", "eggs"): 0.6}
+
+
+# ----------------------------------------------------------------------------
+# Build the model
+# ----------------------------------------------------------------------------
 def build_production_problem(products, resources, consumptions, **kwargs):
     """ Takes as input:
         - a list of product tuples (name, demand, inside, outside)
@@ -56,21 +78,9 @@ def print_production_solution(mdl, products):
               (product=p[0], out_var=mdl.outside_vars[p].solution_value))
 
 
-PRODUCTS = [("kluski", 100, 0.6, 0.8),
-            ("capellini", 200, 0.8, 0.9),
-            ("fettucine", 300, 0.3, 0.4)]
-
-# resources are a list of simple tuples (name, capacity)
-RESOURCES = [("flour", 20),
-             ("eggs", 40)]
-
-CONSUMPTIONS = {("kluski", "flour"): 0.5,
-                ("kluski", "eggs"): 0.2,
-                ("capellini", "flour"): 0.4,
-                ("capellini", "eggs"): 0.4,
-                ("fettucine", "flour"): 0.3,
-                ("fettucine", "eggs"): 0.6}
-
+# ----------------------------------------------------------------------------
+# Solve the model and display the result
+# ----------------------------------------------------------------------------
 if __name__ == '__main__':
     """DOcplexcloud credentials can be specified with url and api_key in the code block below.
 

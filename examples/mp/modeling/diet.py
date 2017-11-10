@@ -13,6 +13,11 @@ from collections import namedtuple
 from docplex.mp.model import Model
 from docplex.util.environment import get_environment
 
+
+# ----------------------------------------------------------------------------
+# Initialize the problem data
+# ----------------------------------------------------------------------------
+
 FOODS = [
     ("Roasted Chicken", 0.84, 0, 10),
     ("Spaghetti W/ Sauce", 0.78, 0, 10),
@@ -51,6 +56,9 @@ Food = namedtuple("Food", ["name", "unit_cost", "qmin", "qmax"])
 Nutrient = namedtuple("Nutrient", ["name", "qmin", "qmax"])
 
 
+# ----------------------------------------------------------------------------
+# Build the model
+# ----------------------------------------------------------------------------
 def build_diet_model(**kwargs):
     # Create tuples with named fields for foods and nutrients
 
@@ -78,7 +86,9 @@ def build_diet_model(**kwargs):
     mdl.print_information()
     return mdl
 
-
+# ----------------------------------------------------------------------------
+# Solve the model and display the result
+# ----------------------------------------------------------------------------
 if __name__ == '__main__':
     """DOcplexcloud credentials can be specified with url and api_key in the code block below.
 

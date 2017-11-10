@@ -13,14 +13,108 @@ from docplex.util.environment import get_environment
 from docplex.mp.absmodel import AbstractModel
 
 
+# ----------------------------------------------------------------------------
+# Initialize the problem data
+# ----------------------------------------------------------------------------
 class TUser(namedtuple("TUser", ["id", "running", "sleeping", "current_server"])):
     def __str__(self):
         return self.id
 
+SERVERS = ["server002", "server003", "server001", "server006", "server007", "server004", "server005"]
 
+USERS = [("user013", 2, 1, "server002"),
+         ("user014", 0, 2, "server002"),
+         ("user015", 0, 4, "server002"),
+         ("user016", 1, 4, "server002"),
+         ("user017", 0, 3, "server002"),
+         ("user018", 0, 2, "server002"),
+         ("user019", 0, 2, "server002"),
+         ("user020", 0, 1, "server002"),
+         ("user021", 4, 4, "server002"),
+         ("user022", 0, 1, "server002"),
+         ("user023", 0, 3, "server002"),
+         ("user024", 1, 2, "server002"),
+         ("user025", 0, 1, "server003"),
+         ("user026", 0, 1, "server003"),
+         ("user027", 1, 1, "server003"),
+         ("user028", 0, 1, "server003"),
+         ("user029", 2, 1, "server003"),
+         ("user030", 0, 5, "server003"),
+         ("user031", 0, 2, "server003"),
+         ("user032", 0, 3, "server003"),
+         ("user033", 1, 1, "server003"),
+         ("user034", 0, 1, "server003"),
+         ("user035", 0, 1, "server003"),
+         ("user036", 4, 1, "server003"),
+         ("user037", 7, 1, "server003"),
+         ("user038", 2, 1, "server003"),
+         ("user039", 0, 3, "server003"),
+         ("user040", 1, 2, "server003"),
+         ("user001", 0, 2, "server001"),
+         ("user002", 0, 3, "server001"),
+         ("user003", 5, 4, "server001"),
+         ("user004", 0, 1, "server001"),
+         ("user005", 0, 1, "server001"),
+         ("user006", 0, 2, "server001"),
+         ("user007", 0, 4, "server001"),
+         ("user008", 0, 1, "server001"),
+         ("user009", 5, 1, "server001"),
+         ("user010", 7, 1, "server001"),
+         ("user011", 4, 5, "server001"),
+         ("user012", 0, 4, "server001"),
+         ("user062", 0, 1, "server006"),
+         ("user063", 3, 5, "server006"),
+         ("user064", 0, 1, "server006"),
+         ("user065", 0, 3, "server006"),
+         ("user066", 3, 1, "server006"),
+         ("user067", 0, 1, "server006"),
+         ("user068", 0, 1, "server006"),
+         ("user069", 0, 2, "server006"),
+         ("user070", 3, 2, "server006"),
+         ("user071", 0, 1, "server006"),
+         ("user072", 5, 3, "server006"),
+         ("user073", 0, 1, "server006"),
+         ("user074", 0, 1, "server006"),
+         ("user075", 0, 2, "server007"),
+         ("user076", 1, 1, "server007"),
+         ("user077", 1, 1, "server007"),
+         ("user078", 0, 1, "server007"),
+         ("user079", 0, 3, "server007"),
+         ("user080", 0, 1, "server007"),
+         ("user081", 4, 1, "server007"),
+         ("user082", 1, 1, "server007"),
+         ("user041", 0, 1, "server004"),
+         ("user042", 2, 1, "server004"),
+         ("user043", 5, 2, "server004"),
+         ("user044", 5, 2, "server004"),
+         ("user045", 0, 2, "server004"),
+         ("user046", 1, 5, "server004"),
+         ("user047", 0, 1, "server004"),
+         ("user048", 0, 3, "server004"),
+         ("user049", 5, 1, "server004"),
+         ("user050", 0, 2, "server004"),
+         ("user051", 0, 3, "server004"),
+         ("user052", 0, 3, "server004"),
+         ("user053", 0, 1, "server004"),
+         ("user054", 0, 2, "server004"),
+         ("user055", 0, 3, "server005"),
+         ("user056", 3, 1, "server005"),
+         ("user057", 0, 3, "server005"),
+         ("user058", 0, 2, "server005"),
+         ("user059", 0, 1, "server005"),
+         ("user060", 0, 5, "server005"),
+         ("user061", 0, 2, "server005")
+         ]
+
+# ----------------------------------------------------------------------------
+# Prepare the data for modeling
+# ----------------------------------------------------------------------------
 DEFAULT_MAX_PROCESSES_PER_SERVER = 50
 
 
+# ----------------------------------------------------------------------------
+# Build the model
+# ----------------------------------------------------------------------------
 class LoadBalancingModel(AbstractModel):
     def __init__(self, **kwargs):
         AbstractModel.__init__(self, 'load_balancing', **kwargs)
@@ -134,7 +228,7 @@ class LoadBalancingModel(AbstractModel):
 
     def save_solution_as_json(self, json_file):
         """Saves the solution for this model as JSON.
-        
+
         Note that this is not a CPLEX Solution file, as this is the result of post-processing a CPLEX solution
         """
         mdl = self
@@ -164,99 +258,15 @@ class LoadBalancingModel(AbstractModel):
         json_file.write(json.dumps(solution_dict, indent=3).encode('utf-8'))
 
 
-SERVERS = ["server002", "server003", "server001", "server006", "server007", "server004", "server005"]
-
-USERS = [("user013", 2, 1, "server002"),
-         ("user014", 0, 2, "server002"),
-         ("user015", 0, 4, "server002"),
-         ("user016", 1, 4, "server002"),
-         ("user017", 0, 3, "server002"),
-         ("user018", 0, 2, "server002"),
-         ("user019", 0, 2, "server002"),
-         ("user020", 0, 1, "server002"),
-         ("user021", 4, 4, "server002"),
-         ("user022", 0, 1, "server002"),
-         ("user023", 0, 3, "server002"),
-         ("user024", 1, 2, "server002"),
-         ("user025", 0, 1, "server003"),
-         ("user026", 0, 1, "server003"),
-         ("user027", 1, 1, "server003"),
-         ("user028", 0, 1, "server003"),
-         ("user029", 2, 1, "server003"),
-         ("user030", 0, 5, "server003"),
-         ("user031", 0, 2, "server003"),
-         ("user032", 0, 3, "server003"),
-         ("user033", 1, 1, "server003"),
-         ("user034", 0, 1, "server003"),
-         ("user035", 0, 1, "server003"),
-         ("user036", 4, 1, "server003"),
-         ("user037", 7, 1, "server003"),
-         ("user038", 2, 1, "server003"),
-         ("user039", 0, 3, "server003"),
-         ("user040", 1, 2, "server003"),
-         ("user001", 0, 2, "server001"),
-         ("user002", 0, 3, "server001"),
-         ("user003", 5, 4, "server001"),
-         ("user004", 0, 1, "server001"),
-         ("user005", 0, 1, "server001"),
-         ("user006", 0, 2, "server001"),
-         ("user007", 0, 4, "server001"),
-         ("user008", 0, 1, "server001"),
-         ("user009", 5, 1, "server001"),
-         ("user010", 7, 1, "server001"),
-         ("user011", 4, 5, "server001"),
-         ("user012", 0, 4, "server001"),
-         ("user062", 0, 1, "server006"),
-         ("user063", 3, 5, "server006"),
-         ("user064", 0, 1, "server006"),
-         ("user065", 0, 3, "server006"),
-         ("user066", 3, 1, "server006"),
-         ("user067", 0, 1, "server006"),
-         ("user068", 0, 1, "server006"),
-         ("user069", 0, 2, "server006"),
-         ("user070", 3, 2, "server006"),
-         ("user071", 0, 1, "server006"),
-         ("user072", 5, 3, "server006"),
-         ("user073", 0, 1, "server006"),
-         ("user074", 0, 1, "server006"),
-         ("user075", 0, 2, "server007"),
-         ("user076", 1, 1, "server007"),
-         ("user077", 1, 1, "server007"),
-         ("user078", 0, 1, "server007"),
-         ("user079", 0, 3, "server007"),
-         ("user080", 0, 1, "server007"),
-         ("user081", 4, 1, "server007"),
-         ("user082", 1, 1, "server007"),
-         ("user041", 0, 1, "server004"),
-         ("user042", 2, 1, "server004"),
-         ("user043", 5, 2, "server004"),
-         ("user044", 5, 2, "server004"),
-         ("user045", 0, 2, "server004"),
-         ("user046", 1, 5, "server004"),
-         ("user047", 0, 1, "server004"),
-         ("user048", 0, 3, "server004"),
-         ("user049", 5, 1, "server004"),
-         ("user050", 0, 2, "server004"),
-         ("user051", 0, 3, "server004"),
-         ("user052", 0, 3, "server004"),
-         ("user053", 0, 1, "server004"),
-         ("user054", 0, 2, "server004"),
-         ("user055", 0, 3, "server005"),
-         ("user056", 3, 1, "server005"),
-         ("user057", 0, 3, "server005"),
-         ("user058", 0, 2, "server005"),
-         ("user059", 0, 1, "server005"),
-         ("user060", 0, 5, "server005"),
-         ("user061", 0, 2, "server005")
-         ]
-
-
 class DefaultLoadBalancingModel(LoadBalancingModel):
     def __init__(self, context=None, **kwargs):
         LoadBalancingModel.__init__(self, context=context, **kwargs)
         self.load_data(SERVERS, USERS)
 
 
+# ----------------------------------------------------------------------------
+# Solve the model and display the result
+# ----------------------------------------------------------------------------
 if __name__ == '__main__':
     """DOcplexcloud credentials can be specified with url and api_key in the code block below.
 

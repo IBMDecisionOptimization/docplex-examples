@@ -10,6 +10,9 @@ from docplex.util.environment import get_environment
 from docplex.mp.model import Model
 
 
+# ----------------------------------------------------------------------------
+# Initialize the problem data
+# ----------------------------------------------------------------------------
 B = [15, 15, 15]
 C = [
     [ 6, 10, 1],
@@ -27,6 +30,9 @@ A = [
 ]
 
 
+# ----------------------------------------------------------------------------
+# Build the model
+# ----------------------------------------------------------------------------
 def run_GAP_model(As, Bs, Cs, url=None, key=None, **kwargs):
     with Model('GAP per Wolsey -without- Lagrangian Relaxation', **kwargs) as mdl:
         print("#As={}, #Bs={}, #Cs={}".format(len(As), len(Bs), len(Cs)))
@@ -114,6 +120,9 @@ def run_default_GAP_model_with_lagrangian_relaxation(url=None, key=None, **kwarg
     return run_GAP_model_with_Lagrangian_relaxation(As=A, Bs=B, Cs=C, url=url, key=key, **kwargs)
 
 
+# ----------------------------------------------------------------------------
+# Solve the model and display the result
+# ----------------------------------------------------------------------------
 if __name__ == '__main__':
     """DOcplexcloud credentials can be specified with url and api_key in the code block below.
 
