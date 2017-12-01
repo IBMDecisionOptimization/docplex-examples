@@ -60,7 +60,7 @@ for i in range(1, ORDER):
 mdl.add((marks[1] - marks[0]) < (marks[ORDER - 1] - marks[ORDER - 2]))
 
 # Minimize ruler size (position of the last mark)
-mdl.minimize(marks[ORDER - 1])
+mdl.add(mdl.minimize(marks[ORDER - 1]))
 
 
 #-----------------------------------------------------------------------------
