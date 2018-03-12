@@ -19,31 +19,6 @@ from six import iteritems
 from docplex.mp.model import Model
 from docplex.util.environment import get_environment
 
-# We need a lock so that we can make write_all_outputs
-# atomic. All output operation (update of the ``outputs`` dict or write) should
-# lock this Lock to ensure that the output is not in an unfinished state when
-# the job is aborted.
-# We also need a stop callback that will lock until this Lock is released
-# to make sure that any write operation finishes.
-output_lock = threading.Lock()
-
-
-def set_stop_callback(cb):
-    env = get_environment()
-    try:
-        env.set_stop_callback(cb)
-    except AttributeError:
-        # env.set_stop_callback does not exists -> older version of docplex
-        # use work around
-        try:
-            import docplex.worker.solvehook as worker_env
-            hook = worker_env.get_solve_hook()
-            if hook:
-                hook.set_stop_callback(cb)
-        finally:
-            # ignore errors
-            pass
-
 
 def get_all_inputs():
     '''Utility method to read a list of files and return a tuple with all
@@ -55,49 +30,14 @@ def get_all_inputs():
     result = {}
     env = get_environment()
     for iname in [f for f in os.listdir('.') if splitext(f)[1] == '.csv']:
-        with env.get_input_stream(iname) as in_stream:
-            df = pandas.read_csv(in_stream)
-            datasetname, _ = splitext(iname)
-            result[datasetname] = df
+        df = env.read_df(iname, index_col=None)
+        datasetname, _ = splitext(iname)
+        result[datasetname] = df
     return result
-
-def callonce(f):
-    @wraps(f)
-    def wrapper(*args, **kwargs):
-        if not wrapper.called:
-            wrapper.called = True
-            return f(*args, **kwargs)
-        print('Function already called once.')
-    wrapper.called = False
-    return wrapper
-
-@callonce
-def write_all_outputs(outputs):
-    '''Write all dataframes in ``outputs`` as .csv.
-
-    Args:
-        outputs: The map of outputs 'outputname' -> 'output df'
-    '''
-    global output_lock
-    with output_lock:
-        for (name, df) in iteritems(outputs):
-            csv_file = '%s.csv' % name
-            with get_environment().get_output_stream(csv_file) as fp:
-                fp.write(df.to_csv(index=False))
-    if len(outputs) == 0:
-        print("Warning: no outputs written")
-
-
-
 
 
 def wait_and_save_all_cb(outputs):
-    global output_lock
-    # just wait for the output_lock to be available
-    with output_lock:
-        pass
-    # write outputs
-    write_all_outputs(outputs)
+    get_environment().store_solution(outputs)
 
 
 def mp_solution_to_df(solution):
@@ -157,7 +97,8 @@ if __name__ == '__main__':
     inputs = get_all_inputs()
     outputs = {}
 
-    set_stop_callback(partial(wait_and_save_all_cb, outputs))
+    # The abort callbacks are called when the docplexcloud job is aborted
+    get_environment().abort_callbacks += [partial(wait_and_save_all_cb, outputs)]
 
     mdl = build_diet_model(inputs)
 
@@ -170,12 +111,5 @@ if __name__ == '__main__':
         mdl.report_kpis()
         # Save the CPLEX solution as 'solution.csv' program output
         solution_df = mp_solution_to_df(mdl.solution)
-
-        with output_lock:
-            # makes sure the solution is fully assigned before we quit
-            outputs['solution'] = solution_df
-
-        # This allows the solution to be saved if this script
-        # is not aborted. If the script is aborted, the `wait_and_save_all_cb`
-        # takes care of the writing
-        write_all_outputs(outputs)
+        outputs['solution'] = solution_df
+        get_environment().store_solution(outputs)

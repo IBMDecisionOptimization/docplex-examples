@@ -68,16 +68,16 @@ SHIFTS = [("Emergency", "monday", 2, 8, 3, 5),
           ("Emergency", "monday", 18, 2, 3, 7),
           ("Consultation", "monday", 8, 12, 10, 13),
           ("Consultation", "monday", 12, 18, 8, 12),
-          ("Cardiac Care", "monday", 8, 12, 10, 13),
-          ("Cardiac Care", "monday", 12, 18, 8, 12),
+          ("Cardiac_Care", "monday", 8, 12, 10, 13),
+          ("Cardiac_Care", "monday", 12, 18, 8, 12),
           ("Emergency", "tuesday", 8, 12, 4, 7),
           ("Emergency", "tuesday", 12, 18, 2, 5),
           ("Emergency", "tuesday", 18, 2, 3, 7),
           ("Consultation", "tuesday", 8, 12, 10, 13),
           ("Consultation", "tuesday", 12, 18, 8, 12),
-          ("Cardiac Care", "tuesday", 8, 12, 4, 7),
-          ("Cardiac Care", "tuesday", 12, 18, 2, 5),
-          ("Cardiac Care", "tuesday", 18, 2, 3, 7),
+          ("Cardiac_Care", "tuesday", 8, 12, 4, 7),
+          ("Cardiac_Care", "tuesday", 12, 18, 2, 5),
+          ("Cardiac_Care", "tuesday", 18, 2, 3, 7),
           ("Emergency", "wednesday", 2, 8, 3, 5),
           ("Emergency", "wednesday", 8, 12, 4, 7),
           ("Emergency", "wednesday", 12, 18, 2, 5),
@@ -105,18 +105,18 @@ SHIFTS = [("Emergency", "monday", 2, 8, 3, 5),
           ("Geriatrics", "sunday", 8, 10, 2, 5)]
 
 NURSE_SKILLS = {"Anne": ["Anaesthesiology", "Oncology", "Pediatrics"],
-                "Betsy": ["Cardiac Care"],
+                "Betsy": ["Cardiac_Care"],
                 "Cathy": ["Anaesthesiology"],
                 "Cecilia": ["Anaesthesiology", "Oncology", "Pediatrics"],
-                "Chris": ["Cardiac Care", "Oncology", "Geriatrics"],
-                "Gloria": ["Pediatrics"], "Jemma": ["Cardiac Care"],
+                "Chris": ["Cardiac_Care", "Oncology", "Geriatrics"],
+                "Gloria": ["Pediatrics"], "Jemma": ["Cardiac_Care"],
                 "Joyce": ["Anaesthesiology", "Pediatrics"],
                 "Julie": ["Geriatrics"], "Juliet": ["Pediatrics"],
-                "Kate": ["Pediatrics"], "Nancy": ["Cardiac Care"],
+                "Kate": ["Pediatrics"], "Nancy": ["Cardiac_Care"],
                 "Nathalie": ["Anaesthesiology", "Geriatrics"],
                 "Patrick": ["Oncology"], "Suzanne": ["Pediatrics"],
                 "Wendie": ["Geriatrics"],
-                "Zoe": ["Cardiac Care"]
+                "Zoe": ["Cardiac_Care"]
                 }
 
 VACATIONS = [("Anne", "friday"),
@@ -195,7 +195,7 @@ NURSE_INCOMPATIBILITIES = [("Patricia", "Patrick"),
                            ("Joan", "Anne")
                            ]
 
-SKILL_REQUIREMENTS = [("Emergency", "Cardiac Care", 1)]
+SKILL_REQUIREMENTS = [("Emergency", "Cardiac_Care", 1)]
 
 DEFAULT_WORK_RULES = TWorkRules(40)
 
@@ -218,7 +218,8 @@ class TShift(namedtuple("TShift",
         dept2 = self.department[0:4].upper()
         # keep 3 days of weekday
         dayname = self.day[0:3]
-        return '{}_{}_{:02d}'.format(dept2, dayname, self.start_time)
+        return '{}_{}_{:02d}'.format(dept2, dayname, self.start_time).replace(" ", "_")
+
 
 
 class ShiftActivity(object):
@@ -296,6 +297,7 @@ def load_data(model, shifts_, nurses_, nurse_skills, vacations_=None,
     # computed
     model.departments = set(sh.department for sh in model.shifts)
 
+
     print('#nurses: {0}'.format(len(model.nurses)))
     print('#shifts: {0}'.format(len(model.shifts)))
     print('#vacations: {0}'.format(len(model.vacations)))
@@ -370,7 +372,7 @@ def setup_constraints(model):
             v += 1
             model.add_constraint(nurse_assigned[vac_n, shift] == 0,
                                  "medium_vacations_{0!s}_{1!s}_{2!s}".format(vac_n, vac_day, shift))
-    print('#vacation cts: {0}'.format(v))
+    #print('#vacation cts: {0}'.format(v))
 
     # a nurse cannot be assigned overlapping shifts
     # post only one constraint per couple(s1, s2)
@@ -385,7 +387,7 @@ def setup_constraints(model):
                 for n in all_nurses:
                     model.add_constraint(nurse_assigned[n, s1] + nurse_assigned[n, s2] <= 1,
                                          "high_overlapping_{0!s}_{1!s}_{2!s}".format(s1, s2, n))
-    print('# overlapping cts: {0}'.format(number_of_overlaps))
+    #print('# overlapping cts: {0}'.format(number_of_overlaps))
 
     for s in all_shifts:
         demand_min = s.min_requirement
@@ -441,7 +443,7 @@ def setup_constraints(model):
 def setup_objective(model):
     model.add_kpi(model.total_salary_cost, "Total salary cost")
     model.add_kpi(model.total_number_of_assignments, "Total number of assignments")
-    model.add_kpi(model.average_nurse_work_time)
+    model.add_kpi(model.average_nurse_work_time, "average work time")
 
     total_over_average_worktime = model.sum(model.nurse_over_average_time_vars[n] for n in model.nurses)
     total_under_average_worktime = model.sum(model.nurse_under_average_time_vars[n] for n in model.nurses)

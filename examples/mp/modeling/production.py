@@ -47,8 +47,8 @@ def build_production_problem(products, resources, consumptions, **kwargs):
     """
     mdl = Model(name='production', **kwargs)
     # --- decision variables ---
-    mdl.inside_vars = mdl.continuous_var_dict(products, name='inside')
-    mdl.outside_vars = mdl.continuous_var_dict(products, name='outside')
+    mdl.inside_vars  = mdl.continuous_var_dict(products, name=lambda p: 'inside_%s' % p[0])
+    mdl.outside_vars = mdl.continuous_var_dict(products, name=lambda p: 'outside_%s' % p[0])
 
     # --- constraints ---
     # demand satisfaction
@@ -60,7 +60,9 @@ def build_production_problem(products, resources, consumptions, **kwargs):
 
     # --- objective ---
     mdl.total_inside_cost = mdl.sum(mdl.inside_vars[p] * p[2] for p in products)
+    mdl.add_kpi(mdl.total_inside_cost, "inside cost")
     mdl.total_outside_cost = mdl.sum(mdl.outside_vars[p] * p[3] for p in products)
+    mdl.add_kpi(mdl.total_outside_cost, "outside cost")
     mdl.minimize(mdl.total_inside_cost + mdl.total_outside_cost)
     return mdl
 
