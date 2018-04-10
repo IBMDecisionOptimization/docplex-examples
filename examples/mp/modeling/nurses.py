@@ -408,7 +408,7 @@ def setup_constraints(model):
                                      "high_required_{0!s}_{1!s}_{2!s}_{3!s}".format(dept, skill, required, dsh))
 
     # nurse-nurse associations
-    # for each pair of associted nurses, their assignement variables are equal
+    # for each pair of associated nurses, their assignment variables are equal
     # over all shifts.
     c = 0
     for (nurse_id1, nurse_id2) in model.nurse_associations:

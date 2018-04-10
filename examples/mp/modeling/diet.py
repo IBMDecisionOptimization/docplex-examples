@@ -59,10 +59,11 @@ Nutrient = namedtuple("Nutrient", ["name", "qmin", "qmax"])
 # ----------------------------------------------------------------------------
 # Build the model
 # ----------------------------------------------------------------------------
+
 def build_diet_model(**kwargs):
     # Create tuples with named fields for foods and nutrients
 
-    food = [Food(*f) for f in FOODS]
+    foods = [Food(*f) for f in FOODS]
     nutrients = [Nutrient(*row) for row in NUTRIENTS]
 
     food_nutrients = {(fn[0], nutrients[n].name):
@@ -72,23 +73,26 @@ def build_diet_model(**kwargs):
     mdl = Model(name='diet', **kwargs)
 
     # Decision variables, limited to be >= Food.qmin and <= Food.qmax
-    qty = {f: mdl.continuous_var(lb=f.qmin, ub=f.qmax, name=f.name) for f in food}
+    qty = mdl.continuous_var_dict(foods, lb=lambda f: f.qmin, ub=lambda f: f.qmax, name=lambda f: "q_%s" % f.name)
 
     # Limit range of nutrients, and mark them as KPIs
     for n in nutrients:
-        amount = mdl.sum(qty[f] * food_nutrients[f.name, n.name] for f in food)
+        amount = mdl.sum(qty[f] * food_nutrients[f.name, n.name] for f in foods)
         mdl.add_range(n.qmin, amount, n.qmax)
         mdl.add_kpi(amount, publish_name="Total %s" % n.name)
 
     # Minimize cost
-    mdl.minimize(mdl.sum(qty[f] * f.unit_cost for f in food))
+    mdl.minimize(mdl.sum(qty[f] * f.unit_cost for f in foods))
 
     mdl.print_information()
+    mdl.export_as_lp()
     return mdl
 
 # ----------------------------------------------------------------------------
 # Solve the model and display the result
 # ----------------------------------------------------------------------------
+
+
 if __name__ == '__main__':
     """DOcplexcloud credentials can be specified with url and api_key in the code block below.
 
