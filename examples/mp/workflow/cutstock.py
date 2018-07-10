@@ -101,7 +101,7 @@ def make_custstock_master_model(item_table, pattern_table, fill_table, roll_widt
     # --- variables
     # one cut var per pattern...
     m.MAX_CUT = 9999
-    m.cut_vars = m.continuous_var_dict(m.patterns, lb=0, ub=m.MAX_CUT, name='cut')
+    m.cut_vars = m.continuous_var_dict(m.patterns, lb=0, ub=m.MAX_CUT, name="cut")
 
     # --- add fill constraints
     #
@@ -139,7 +139,7 @@ def add_pattern_to_master_model(master_model, item_usages):
 
     # --- add one decision variable, linked to the new pattern.
     new_pattern_cut_var = master_model.continuous_var(lb=0, ub=master_model.MAX_CUT,
-                                                      name='cut_{0!s}'.format(new_pattern))
+                                                      name='cut_{0}'.format(new_pattern_id))
     master_model.cut_vars[new_pattern] = new_pattern_cut_var
 
     # update constraints
