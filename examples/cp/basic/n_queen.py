@@ -61,7 +61,7 @@ msol = mdl.solve(TimeLimit=10)
 if msol:
     stdout.write("Solution:")
     for v in x:
-        stdout.write(" " + str(msol[v]))
+        stdout.write(" {}".format(msol[v]))
     stdout.write("\n")
     # Draw chess board
     for l in range(NB_QUEEN):
@@ -71,4 +71,4 @@ if msol:
             stdout.write("Q" if c == qx else ".")
         stdout.write("\n")
 else:
-    stdout.write("Solve status: " + msol.get_solve_status() + "\n")
+    stdout.write("Solve status: {}\n".format(msol.get_solve_status()))

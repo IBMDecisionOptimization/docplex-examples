@@ -1,7 +1,7 @@
 # --------------------------------------------------------------------------
 # Source file provided under Apache License, Version 2.0, January 2004,
 # http://www.apache.org/licenses/
-# (c) Copyright IBM Corp. 2015, 2016
+# (c) Copyright IBM Corp. 2015, 2018
 # --------------------------------------------------------------------------
 
 from collections import namedtuple
@@ -14,7 +14,13 @@ from docplex.util.environment import get_environment
 # ----------------------------------------------------------------------------
 
 # utility to convert a weekday string to an index in 0..6
-_all_days = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]
+_all_days = ["monday",
+             "tuesday",
+             "wednesday",
+             "thursday",
+             "friday",
+             "saturday",
+             "sunday"]
 
 
 def day_to_day_week(day):
@@ -219,7 +225,6 @@ class TShift(namedtuple("TShift",
         # keep 3 days of weekday
         dayname = self.day[0:3]
         return '{}_{}_{:02d}'.format(dept2, dayname, self.start_time).replace(" ", "_")
-
 
 
 class ShiftActivity(object):
@@ -509,30 +514,11 @@ def build(context=None, **kwargs):
 # ----------------------------------------------------------------------------
 
 if __name__ == '__main__':
-    """DOcplexcloud credentials can be specified with url and api_key in the code block below.
-
-    Alternatively, Context.make_default_context() searches the PYTHONPATH for
-    the following files:
-
-        * cplex_config.py
-        * cplex_config_<hostname>.py
-        * docloud_config.py (must only contain context.solver.docloud configuration)
-
-    These files contain the credentials and other properties. For example,
-    something similar to::
-
-       context.solver.docloud.url = "https://docloud.service.com/job_manager/rest/v1"
-       context.solver.docloud.key = "example api_key"
-    """
-    url = None
-    key = None
-
     # Build model
     model = build()
 
-    # Solve the model. If a key has been specified above, the solve
-    # will use IBM Decision Optimization on cloud.
-    solve(model, url=url, key=key)
+    # Solve the model and print solution
+    solve(model)
 
     # Save the CPLEX solution as "solution.json" program output
     with get_environment().get_output_stream("solution.json") as fp:

@@ -1,7 +1,7 @@
 # --------------------------------------------------------------------------
 # Source file provided under Apache License, Version 2.0, January 2004,
 # http://www.apache.org/licenses/
-# (c) Copyright IBM Corp. 2015, 2016
+# (c) Copyright IBM Corp. 2015, 2018
 # --------------------------------------------------------------------------
 
 # Source: http://blog.yhathq.com/posts/how-yhat-does-cloud-balancing.html
@@ -268,29 +268,10 @@ class DefaultLoadBalancingModel(LoadBalancingModel):
 # Solve the model and display the result
 # ----------------------------------------------------------------------------
 if __name__ == '__main__':
-    """DOcplexcloud credentials can be specified with url and api_key in the code block below.
-
-    Alternatively, Context.make_default_context() searches the PYTHONPATH for
-    the following files:
-
-        * cplex_config.py
-        * cplex_config_<hostname>.py
-        * docloud_config.py (must only contain context.solver.docloud configuration)
-
-    These files contain the credentials and other properties. For example,
-    something similar to::
-
-       context.solver.docloud.url = "https://docloud.service.com/job_manager/rest/v1"
-       context.solver.docloud.key = "example api_key"
-    """
-    url = None  # put your url here
-    key = None  # put your api key here
-
     lbm = DefaultLoadBalancingModel()
 
-    # Run the model. If a key has been specified above, the model will run on
-    # IBM Decision Optimization on cloud.
-    if lbm.run(url=url, key=key):
+    # Run the model.
+    if lbm.run():
         lbm.report()
         with get_environment().get_output_stream("solution.json") as fp:
             lbm.save_solution_as_json(fp)

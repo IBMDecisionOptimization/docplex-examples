@@ -1,11 +1,12 @@
 # --------------------------------------------------------------------------
 # Source file provided under Apache License, Version 2.0, January 2004,
 # http://www.apache.org/licenses/
-# (c) Copyright IBM Corp. 2015, 2016
+# (c) Copyright IBM Corp. 2015, 2018
 # --------------------------------------------------------------------------
 
 
 from docplex.mp.model import Model
+from docplex.util.environment import get_environment
 
 
 # The company Sailco must determine how many sailboats to produce over several time periods,
@@ -18,7 +19,9 @@ from docplex.mp.model import Model
 # production cost and inventory cost.
 # The production cost is modeled using a *piecewise-linear* function.
 
-# Input Data
+# ----------------------------------------------------------------------------
+# Initialize the problem data
+# ----------------------------------------------------------------------------
 nb_periods = 4
 demand = {1: 40, 2: 60, 3: 75, 4: 25}
 
@@ -28,6 +31,10 @@ extra_cost = 450
 
 initial_inventory = 10
 inventory_cost = 20
+
+# ----------------------------------------------------------------------------
+# Build the model
+# ----------------------------------------------------------------------------
 
 
 def build_sailcopw_model(**kwargs):
@@ -59,12 +66,19 @@ def build_sailcopw_model(**kwargs):
 
     return mdl
 
+# ----------------------------------------------------------------------------
+# Solve the model and display the result
+# ----------------------------------------------------------------------------
 
 if __name__ == '__main__':
     sailm = build_sailcopw_model()
     s = sailm.solve(log_output=True)
-    assert s
-    assert abs(s.objective_value - 78450) <= 5
-    # print(sailm.get_solve_details())
-    sailm.report()
-    sailm.print_solution()
+    if s:
+        sailm.report()
+        sailm.print_solution()
+
+        # Save the CPLEX solution as "solution.json" program output
+        with get_environment().get_output_stream("solution.json") as fp:
+            sailm.solution.export(fp, "json")
+    else:
+        print("Problem has no solution")

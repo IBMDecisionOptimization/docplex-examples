@@ -72,12 +72,11 @@ def make_cutstock_pattern_generation_model(items, roll_width, **kwargs):
 
 
 def cutstock_update_duals(gmodel, new_duals):
-    # update the duals array and the the duals exppression...
+    # update the duals array and the the duals expression...
     # edition is propagated to the objective of the model.
     gmodel.duals = new_duals
     use_vars = gmodel.use_vars
     assert len(new_duals) == len(use_vars)
-    # TODO: use zip here
     updated_used = [(use, -new_duals[u]) for u, use in enumerate(use_vars)]
     # this modification is notified to the objective.
     gmodel.use_dual_expr.set_coefficients(updated_used)
@@ -262,29 +261,11 @@ def cutstock_solve_default(**kwargs):
                           **kwargs)
 
 
-#-----------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 # Solve the model and display the result
-#-----------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 if __name__ == '__main__':
-    """DOcplexcloud credentials can be specified with url and api_key in the code block below.
-
-    Alternatively, Context.make_default_context() searches the PYTHONPATH for
-    the following files:
-
-        * cplex_config.py
-        * cplex_config_<hostname>.py
-        * docloud_config.py (must only contain context.solver.docloud configuration)
-
-    These files contain the credentials and other properties. For example,
-    something similar to::
-
-       context.solver.docloud.url = "https://docloud.service.com/job_manager/rest/v1"
-       context.solver.docloud.key = "example api_key"
-    """
-    url = None
-    key = None
-
-    s = cutstock_solve_default(url=url, key=key)
+    s = cutstock_solve_default()
     assert abs(s.objective_value - 46.25) <= 0.1
     # Save the solution as "solution.json" program output.
     with get_environment().get_output_stream("solution.json") as fp:

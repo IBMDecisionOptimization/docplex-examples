@@ -1,7 +1,7 @@
 # --------------------------------------------------------------------------
 # Source file provided under Apache License, Version 2.0, January 2004,
 # http://www.apache.org/licenses/
-# (c) Copyright IBM Corp. 2015, 2016
+# (c) Copyright IBM Corp. 2015, 2018
 # --------------------------------------------------------------------------
 
 import json
@@ -33,7 +33,7 @@ A = [
 # ----------------------------------------------------------------------------
 # Build the model
 # ----------------------------------------------------------------------------
-def run_GAP_model(As, Bs, Cs, url=None, key=None, **kwargs):
+def run_GAP_model(As, Bs, Cs, **kwargs):
     with Model('GAP per Wolsey -without- Lagrangian Relaxation', **kwargs) as mdl:
         print("#As={}, #Bs={}, #Cs={}".format(len(As), len(Bs), len(Cs)))
         number_of_cs = len(C)
@@ -50,14 +50,14 @@ def run_GAP_model(As, Bs, Cs, url=None, key=None, **kwargs):
         total_profit = mdl.sum(mdl.scal_prod(x_i, c_i) for c_i, x_i in zip(Cs, x_vars))
         mdl.maximize(total_profit)
         #  mdl.print_information()
-        s = mdl.solve(url=url, key=key)
+        s = mdl.solve()
         assert s is not None
         obj = s.objective_value
         print("* GAP with no relaxation run OK, best objective is: {:g}".format(obj))
     return obj
 
 
-def run_GAP_model_with_Lagrangian_relaxation(As, Bs, Cs, max_iters=101, url=None, key=None, **kwargs):
+def run_GAP_model_with_Lagrangian_relaxation(As, Bs, Cs, max_iters=101, **kwargs):
     with Model('GAP per Wolsey -with- Lagrangian Relaxation', **kwargs) as mdl:
         print("#As={}, #Bs={}, #Cs={}".format(len(As), len(Bs), len(Cs)))
         number_of_cs = len(Cs)
@@ -86,7 +86,7 @@ def run_GAP_model_with_Lagrangian_relaxation(As, Bs, Cs, max_iters=101, url=None
             # rebuilt at each loop iteration
             total_penalty = mdl.scal_prod(p_vars, multipliers)
             mdl.maximize(total_profit + total_penalty)
-            s = mdl.solve(url=url, key=key)
+            s = mdl.solve()
             if not s:
                 print("*** solve fails, stopping at iteration: %d" % loop_count)
                 break
@@ -116,36 +116,18 @@ def run_GAP_model_with_Lagrangian_relaxation(As, Bs, Cs, max_iters=101, url=None
     return best
 
 
-def run_default_GAP_model_with_lagrangian_relaxation(url=None, key=None, **kwargs):
-    return run_GAP_model_with_Lagrangian_relaxation(As=A, Bs=B, Cs=C, url=url, key=key, **kwargs)
+def run_default_GAP_model_with_lagrangian_relaxation(**kwargs):
+    return run_GAP_model_with_Lagrangian_relaxation(As=A, Bs=B, Cs=C, **kwargs)
 
 
 # ----------------------------------------------------------------------------
 # Solve the model and display the result
 # ----------------------------------------------------------------------------
 if __name__ == '__main__':
-    """DOcplexcloud credentials can be specified with url and api_key in the code block below.
-
-    Alternatively, Context.make_default_context() searches the PYTHONPATH for
-    the following files:
-
-        * cplex_config.py
-        * cplex_config_<hostname>.py
-        * docloud_config.py (must only contain context.solver.docloud configuration)
-
-    These files contain the credentials and other properties. For example,
-    something similar to::
-
-       context.solver.docloud.url = "https://docloud.service.com/job_manager/rest/v1"
-       context.solver.docloud.key = "example api_key"
-    """
-    url = None  # put your url here
-    key = None  # put your api key here
-
     # Run the model. If a key has been specified above, the model will run on
     # IBM Decision Optimization on cloud.
-    gap_best_obj = run_GAP_model(A, B, C, url=url, key=key)
-    relaxed_best = run_GAP_model_with_Lagrangian_relaxation(A, B, C, url=url, key=key)
+    gap_best_obj = run_GAP_model(A, B, C)
+    relaxed_best = run_GAP_model_with_Lagrangian_relaxation(A, B, C)
     # save the relaxed solution
     with get_environment().get_output_stream("solution.json") as fp:
         fp.write(json.dumps({"objectiveValue": relaxed_best}).encode('utf-8'))
