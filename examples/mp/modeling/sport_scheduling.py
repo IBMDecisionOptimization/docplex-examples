@@ -13,7 +13,7 @@ from docplex.util.environment import get_environment
 # ----------------------------------------------------------------------------
 # Initialize the problem data
 # ----------------------------------------------------------------------------
-nbs = (8, 1, 1)
+nbs = (8, 3, 2)
 
 team_div1 = {"Baltimore Ravens", "Cincinnati Bengals", "Cleveland Browns",
              "Pittsburgh Steelers", "Houston Texans", "Indianapolis Colts",
@@ -35,9 +35,9 @@ Match = namedtuple("Matches", ["team1", "team2", "is_divisional"])
 # ----------------------------------------------------------------------------
 # Build the model
 # ----------------------------------------------------------------------------
-def build_sports(context=None):
+def build_sports(**kwargs):
     print("* building sport scheduling model instance")
-    mdl = Model('sportSchedCPLEX', context=context)
+    mdl = Model('sportSchedCPLEX', **kwargs)
 
     nb_teams_in_division, nb_intra_divisional, nb_inter_divisional = nbs
     assert len(team_div1) == len(team_div2)
