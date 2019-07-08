@@ -459,8 +459,7 @@ def setup_objective(model):
     total_fairness = total_over_average_worktime + total_under_average_worktime
     model.add_kpi(total_fairness, "Total fairness")
 
-    model.set_multi_objective(ObjectiveSense.Minimize, [model.total_salary_cost, total_fairness, model.total_number_of_assignments],
-                              priorities=[2, 3, 1])
+    model.minimize_static_lex([model.total_salary_cost, total_fairness, model.total_number_of_assignments])
 
 
 def print_information(model):

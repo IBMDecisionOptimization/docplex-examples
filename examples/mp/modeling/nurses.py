@@ -284,7 +284,7 @@ def solve(model, **kwargs):
 
 
 def load_data(model, shifts_, nurses_, nurse_skills, vacations_=None,
-              nurse_associations_=None, nurse_imcompatibilities_=None):
+              nurse_associations_=None, nurse_imcompatibilities_=None, verbose=True):
     """ Usage: load_data(shifts, nurses, nurse_skills, vacations) """
     model.number_of_overlaps = 0
     model.work_rules = DEFAULT_WORK_RULES
@@ -302,12 +302,12 @@ def load_data(model, shifts_, nurses_, nurse_skills, vacations_=None,
     # computed
     model.departments = set(sh.department for sh in model.shifts)
 
-
-    print('#nurses: {0}'.format(len(model.nurses)))
-    print('#shifts: {0}'.format(len(model.shifts)))
-    print('#vacations: {0}'.format(len(model.vacations)))
-    print("#associations=%d" % len(model.nurse_associations))
-    print("#incompatibilities=%d" % len(model.nurse_incompatibilities))
+    if verbose:
+        print('#nurses: {0}'.format(len(model.nurses)))
+        print('#shifts: {0}'.format(len(model.shifts)))
+        print('#vacations: {0}'.format(len(model.vacations)))
+        print("#associations=%d" % len(model.nurse_associations))
+        print("#incompatibilities=%d" % len(model.nurse_incompatibilities))
 
 
 def setup_data(model):
@@ -439,9 +439,14 @@ def setup_constraints(model):
                 model.add_constraint(nurse_assigned[nurse1, s] + nurse_assigned[nurse2, s] <= 1, ctname)
 
     model.total_number_of_assignments = model.sum(nurse_assigned[n, s] for n in all_nurses for s in all_shifts)
-    model.nurse_costs = [model.nurse_assignment_vars[n, s] * n.pay_rate * model.shift_activities[s].duration for n in
-                         model.nurses
-                         for s in model.shifts]
+    # model.nurse_costs = [model.nurse_assignment_vars[n, s] * n.pay_rate * model.shift_activities[s].duration
+    #                      for n in model.nurses for s in model.shifts]
+
+    def assignment_cost_f(ns):
+        n, s = ns
+        return n.pay_rate * model.shift_activities[s].duration
+
+    model.nurse_costs = model.scal_prod_f(nurse_assigned, assignment_cost_f)
     model.total_salary_cost = model.sum(model.nurse_costs)
 
 
@@ -498,10 +503,10 @@ def print_solution(model):
 # Build the model
 # ----------------------------------------------------------------------------
 
-def build(context=None, **kwargs):
+def build(context=None, verbose=False, **kwargs):
     mdl = Model("Nurses", context=context, **kwargs)
     load_data(mdl, SHIFTS, NURSES, NURSE_SKILLS, VACATIONS, NURSE_ASSOCIATIONS,
-              NURSE_INCOMPATIBILITIES)
+              NURSE_INCOMPATIBILITIES, verbose=verbose)
     setup_data(mdl)
     setup_variables(mdl)
     setup_constraints(mdl)

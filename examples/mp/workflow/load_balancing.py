@@ -7,10 +7,8 @@
 # Source: http://blog.yhathq.com/posts/how-yhat-does-cloud-balancing.html
 
 from collections import namedtuple
-import json
 
-from docplex.util.environment import get_environment
-from docplex.mp.absmodel import AbstractModel
+from docplex.mp.model import Model
 
 
 # ----------------------------------------------------------------------------
@@ -19,6 +17,7 @@ from docplex.mp.absmodel import AbstractModel
 class TUser(namedtuple("TUser", ["id", "running", "sleeping", "current_server"])):
     def __str__(self):
         return self.id
+
 
 SERVERS = ["server002", "server003", "server001", "server006", "server007", "server004", "server005"]
 
@@ -112,166 +111,136 @@ USERS = [("user013", 2, 1, "server002"),
 DEFAULT_MAX_PROCESSES_PER_SERVER = 50
 
 
+def _is_migration(user, server):
+    """ Returns True if server is not the user's current
+        Used in setup of constraints.
+    """
+    return server != user.current_server
+
+
 # ----------------------------------------------------------------------------
 # Build the model
 # ----------------------------------------------------------------------------
-class LoadBalancingModel(AbstractModel):
-    def __init__(self, **kwargs):
-        AbstractModel.__init__(self, 'load_balancing', **kwargs)
-        # raw data
-        self.max_processes_per_server = DEFAULT_MAX_PROCESSES_PER_SERVER
-        self.servers = []
-        self.users = []
-        # decision objects
-        self.active_var_by_server = {}
-        self.assign_user_to_server_vars = {}
-        self.number_of_active_servers = None
-        self.number_of_migrations = None
-        self.max_sleeping_workload = None
 
-    def load_data(self, servers, users, max_process_per_server=DEFAULT_MAX_PROCESSES_PER_SERVER):
-        self.servers = servers
-        self.users = [TUser(*user_row) for user_row in users]
-        self.max_processes_per_server = max_process_per_server
+def build_load_balancing_model(servers, users_, max_process_per_server=DEFAULT_MAX_PROCESSES_PER_SERVER, **kwargs):
+    m = Model(name='load_balancing', **kwargs)
 
-    def clear(self):
-        AbstractModel.clear(self)
-        self.active_var_by_server = {}
-        self.assign_user_to_server_vars = {}
-        self.number_of_active_servers = None
+    # decision objects
 
-    def setup_variables(self):
-        all_servers = self.servers
-        all_users = self.users
+    users = [TUser(*user_row) for user_row in users_]
 
-        self.active_var_by_server = self.binary_var_dict(all_servers, name='isActive')
+    active_var_by_server = m.binary_var_dict(servers, name='isActive')
 
-        def user_server_pair_namer(u_s):
-            u, s = u_s
-            return '%s_to_%s' % (u.id, s)
+    def user_server_pair_namer(u_s):
+        u, s = u_s
+        return '%s_to_%s' % (u.id, s)
 
-        self.assign_user_to_server_vars = self.binary_var_matrix(all_users, all_servers, user_server_pair_namer)
+    assign_user_to_server_vars = m.binary_var_matrix(users, servers, user_server_pair_namer)
 
-    @staticmethod
-    def _is_migration(user, server):
-        """ Returns True if server is not the user's current
-            Used in setup of constraints.
-        """
-        return server != user.current_server
-
-    def setup_constraints(self):
-        mdl = self
-        all_servers = self.servers
-        all_users = self.users
-
-        max_proc_per_server = self.max_processes_per_server
-
-        mdl.add_constraints(
-            mdl.sum(self.assign_user_to_server_vars[u, s] * u.running for u in all_users) <= max_proc_per_server
-            for s in all_servers)
-
-        # each assignment var <u, s>  is <= active_server(s)
-        for s in all_servers:
-            for u in all_users:
-                ct_name = 'ct_assign_to_active_{0!s}_{1!s}'.format(u, s)
-                mdl.add_constraint(self.assign_user_to_server_vars[u, s] <= self.active_var_by_server[s], ct_name)
+    m.add_constraints(
+        m.sum(assign_user_to_server_vars[u, s] * u.running for u in users) <= max_process_per_server for s in servers)
+    # each assignment var <u, s>  is <= active_server(s)
+    for s in servers:
+        for u in users:
+            ct_name = 'ct_assign_to_active_{0!s}_{1!s}'.format(u, s)
+            m.add_constraint(assign_user_to_server_vars[u, s] <= active_var_by_server[s], ct_name)
 
         # sum of assignment vars for (u, all s in servers) == 1
-        for u in all_users:
+        for u in users:
             ct_name = 'ct_unique_server_%s' % (u[0])
-            mdl.add_constraint(mdl.sum((self.assign_user_to_server_vars[u, s] for s in all_servers)) == 1.0, ct_name)
+            m.add_constraint(m.sum((assign_user_to_server_vars[u, s] for s in servers)) == 1, ct_name)
 
-    def setup_objective(self):
-        mdl = self
-        self.number_of_active_servers = mdl.sum((self.active_var_by_server[svr] for svr in self.servers))
-        self.add_kpi(self.number_of_active_servers, "Number of active servers")
+    number_of_active_servers = m.sum((active_var_by_server[svr] for svr in servers))
+    m.add_kpi(number_of_active_servers, "Number of active servers")
 
-        self.number_of_migrations = mdl.sum(
-            self.assign_user_to_server_vars[u, s] for u in self.users for s in self.servers if
-            self._is_migration(u, s))
-        mdl.add_kpi(self.number_of_migrations, "Total number of migrations")
+    number_of_migrations = m.sum(
+        assign_user_to_server_vars[u, s] for u in users for s in servers if
+        _is_migration(u, s))
+    m.add_kpi(number_of_migrations, "Total number of migrations")
 
-        max_sleeping_workload = mdl.integer_var(name="max_sleeping_processes")
-        for s in self.servers:
-            ct_name = 'ct_define_max_sleeping_%s' % s
-            mdl.add_constraint(
-                mdl.sum(
-                    self.assign_user_to_server_vars[u, s] * u.sleeping for u in self.users) <= max_sleeping_workload,
-                ct_name)
-        mdl.add_kpi(max_sleeping_workload, "Max sleeping workload")
-        self.max_sleeping_workload = max_sleeping_workload
-        # Set objective function
-        mdl.minimize(self.number_of_active_servers)
+    max_sleeping_workload = m.integer_var(name="max_sleeping_processes")
+    for s in servers:
+        ct_name = 'ct_define_max_sleeping_%s' % s
+        m.add_constraint(
+            m.sum(
+                assign_user_to_server_vars[u, s] * u.sleeping for u in users) <= max_sleeping_workload,
+            ct_name)
+    m.add_kpi(max_sleeping_workload, "Max sleeping workload")
+    # Set objective function
+    # m.minimize(number_of_active_servers)
+    m.minimize_static_lex([number_of_active_servers, number_of_migrations, max_sleeping_workload])
 
-    def run(self, **kwargs):
-        mdl = self
-        mdl.ensure_setup()
-        mdl.print_information()
-        # build an ordered sequence of goals
-        ordered_kpi_keywords = ["servers", "migrations", "sleeping"]
-        ordered_goals = [mdl.kpi_by_name(k) for k in ordered_kpi_keywords]
+    # attach artefacts to model for reporting
+    m.users = users
+    m.servers = servers
+    m.active_var_by_server = active_var_by_server
+    m.assign_user_to_server_vars = assign_user_to_server_vars
+    m.max_sleeping_workload = max_sleeping_workload
 
-        return mdl.solve_lexicographic(ordered_goals, **kwargs)
-
-    def report(self):
-        mdl = self
-        active_servers = sorted([s for s in mdl.servers if mdl.active_var_by_server[s].solution_value == 1])
-        print("Active Servers: {}".format(active_servers))
-        print("*** User assignment ***")
-        for (u, s) in sorted(mdl.assign_user_to_server_vars):
-            if mdl.assign_user_to_server_vars[(u, s)].solution_value == 1:
-                print("{} uses {}, migration: {}".format(u, s, "yes" if mdl._is_migration(u, s) else "no"))
-        print("*** Servers sleeping processes ***")
-        for s in active_servers:
-            sleeping = sum(self.assign_user_to_server_vars[u, s].solution_value * u.sleeping for u in self.users)
-            print("Server: {} #sleeping={}".format(s, sleeping))
-
-    def save_solution_as_json(self, json_file):
-        """Saves the solution for this model as JSON.
-
-        Note that this is not a CPLEX Solution file, as this is the result of post-processing a CPLEX solution
-        """
-        mdl = self
-        solution_dict = {}
-        # active server
-        active_servers = sorted([s for s in mdl.servers if mdl.active_var_by_server[s].solution_value == 1])
-        solution_dict["active servers"] = active_servers
-
-        # sleeping processes by server
-        sleeping_processes = {}
-        for s in active_servers:
-            sleeping = sum(self.assign_user_to_server_vars[u, s].solution_value * u.sleeping for u in self.users)
-            sleeping_processes[s] = sleeping
-        solution_dict["sleeping processes by server"] = sleeping_processes
-
-        # user assignment
-        user_assignment = []
-        for (u, s) in sorted(mdl.assign_user_to_server_vars):
-            if mdl.assign_user_to_server_vars[(u, s)].solution_value == 1:
-                n = {
-                    'user': u.id,
-                    'server': s,
-                    'migration': "yes" if mdl._is_migration(u, s) else "no"
-                }
-                user_assignment.append(n)
-        solution_dict['user assignment'] = user_assignment
-        json_file.write(json.dumps(solution_dict, indent=3).encode('utf-8'))
+    return m
 
 
-class DefaultLoadBalancingModel(LoadBalancingModel):
-    def __init__(self, context=None, **kwargs):
-        LoadBalancingModel.__init__(self, context=context, **kwargs)
-        self.load_data(SERVERS, USERS)
+def lb_report(mdl):
+    active_servers = sorted([s for s in mdl.servers if mdl.active_var_by_server[s].solution_value == 1])
+    print("Active Servers: {0} = {1}".format(len(active_servers), active_servers))
+    print("*** User/server assignments , #migrations={0} ***".format(
+        mdl.kpi_by_name("number of migrations").solution_value))
+    # for (u, s) in sorted(mdl.assign_user_to_server_vars):
+    #     if mdl.assign_user_to_server_vars[(u, s)].solution_value == 1:
+    #         print("{} uses {}, migration: {}".format(u, s, "yes" if _is_migration(u, s) else "no"))
+    print("*** Servers sleeping processes ***")
+    for s in active_servers:
+        sleeping = sum(mdl.assign_user_to_server_vars[u, s].solution_value * u.sleeping for u in mdl.users)
+        print("Server: {} #sleeping={}".format(s, sleeping))
 
+
+def make_default_load_balancing_model(**kwargs):
+    return build_load_balancing_model(SERVERS, USERS, **kwargs)
+
+
+def lb_save_solution_as_json(mdl, json_file):
+    """Saves the solution for this model as JSON.
+
+    Note that this is not a CPLEX Solution file, as this is the result of post-processing a CPLEX solution
+    """
+    import json
+    solution_dict = {}
+    # active server
+    active_servers = sorted([s for s in mdl.servers if mdl.active_var_by_server[s].solution_value == 1])
+    solution_dict["active servers"] = active_servers
+
+    # sleeping processes by server
+    sleeping_processes = {}
+    for s in active_servers:
+        sleeping = sum(mdl.assign_user_to_server_vars[u, s].solution_value * u.sleeping for u in mdl.users)
+        sleeping_processes[s] = sleeping
+    solution_dict["sleeping processes by server"] = sleeping_processes
+
+# user assignment
+    user_assignment = []
+    for (u, s) in sorted(mdl.assign_user_to_server_vars):
+        if mdl.assign_user_to_server_vars[(u, s)].solution_value == 1:
+            n = {
+                'user': u.id,
+                'server': s,
+                'migration': "yes" if _is_migration(u, s) else "no"
+            }
+            user_assignment.append(n)
+    solution_dict['user assignment'] = user_assignment
+    json_file.write(json.dumps(solution_dict, indent=3).encode('utf-8'))
 
 # ----------------------------------------------------------------------------
 # Solve the model and display the result
 # ----------------------------------------------------------------------------
+
 if __name__ == '__main__':
-    lbm = DefaultLoadBalancingModel()
+    lbm = make_default_load_balancing_model()
 
     # Run the model.
-    if lbm.run():
-        lbm.report()
-        with get_environment().get_output_stream("solution.json") as fp:
-            lbm.save_solution_as_json(fp)
+    lbs = lbm.solve(log_output=True)
+    lb_report(lbm)
+    # save json, used in worker tests
+    from docplex.util.environment import get_environment
+    with get_environment().get_output_stream("solution.json") as fp:
+        lb_save_solution_as_json(lbm, fp)
+

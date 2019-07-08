@@ -87,6 +87,9 @@ def print_production_solution(mdl, products):
               (product=p[0], out_var=mdl.outside_vars[p].solution_value))
 
 
+def build_default_production_problem(**kwargs):
+    return build_production_problem(PRODUCTS, RESOURCES, CONSUMPTIONS, **kwargs)
+
 # ----------------------------------------------------------------------------
 # Solve the model and display the result
 # ----------------------------------------------------------------------------

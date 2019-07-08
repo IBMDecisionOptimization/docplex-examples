@@ -60,7 +60,7 @@ Nutrient = namedtuple("Nutrient", ["name", "qmin", "qmax"])
 # Build the model
 # ----------------------------------------------------------------------------
 
-def build_diet_model(**kwargs):
+def build_diet_model(name='diet', **kwargs):
     # Create tuples with named fields for foods and nutrients
 
     foods = [Food(*f) for f in FOODS]
@@ -70,7 +70,7 @@ def build_diet_model(**kwargs):
                       fn[1 + n] for fn in FOOD_NUTRIENTS for n in range(len(NUTRIENTS))}
 
     # Model
-    mdl = Model(name='diet', **kwargs)
+    mdl = Model(name=name, **kwargs)
 
     # Decision variables, limited to be >= Food.qmin and <= Food.qmax
     qty = mdl.continuous_var_dict(foods, lb=lambda f: f.qmin, ub=lambda f: f.qmax, name=lambda f: "q_%s" % f.name)
