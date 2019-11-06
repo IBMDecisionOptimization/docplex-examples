@@ -26,6 +26,7 @@ NB_HOUSES = 5
 
 # Max number of periods for the schedule
 MAX_SCHEDULE = 318
+MAX_SCHEDULE = 200000
 
 # House construction tasks
 Task = (namedtuple("Task", ["name", "duration"]))

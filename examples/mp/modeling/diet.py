@@ -13,7 +13,6 @@ from collections import namedtuple
 from docplex.mp.model import Model
 from docplex.util.environment import get_environment
 
-
 # ----------------------------------------------------------------------------
 # Initialize the problem data
 # ----------------------------------------------------------------------------
@@ -61,19 +60,21 @@ Nutrient = namedtuple("Nutrient", ["name", "qmin", "qmax"])
 # ----------------------------------------------------------------------------
 
 def build_diet_model(name='diet', **kwargs):
-    # Create tuples with named fields for foods and nutrients
+    ints = kwargs.pop('ints', False)
 
+    # Create tuples with named fields for foods and nutrients
     foods = [Food(*f) for f in FOODS]
     nutrients = [Nutrient(*row) for row in NUTRIENTS]
 
     food_nutrients = {(fn[0], nutrients[n].name):
-                      fn[1 + n] for fn in FOOD_NUTRIENTS for n in range(len(NUTRIENTS))}
+                       fn[1 + n] for fn in FOOD_NUTRIENTS for n in range(len(NUTRIENTS))}
 
     # Model
     mdl = Model(name=name, **kwargs)
 
     # Decision variables, limited to be >= Food.qmin and <= Food.qmax
-    qty = mdl.continuous_var_dict(foods, lb=lambda f: f.qmin, ub=lambda f: f.qmax, name=lambda f: "q_%s" % f.name)
+    ftype = mdl.integer_vartype if ints else mdl.continuous_vartype
+    qty = mdl.var_dict(foods, ftype, lb=lambda f: f.qmin, ub=lambda f: f.qmax, name=lambda f: "q_%s" % f.name)
 
     # Limit range of nutrients, and mark them as KPIs
     for n in nutrients:
@@ -82,23 +83,36 @@ def build_diet_model(name='diet', **kwargs):
         mdl.add_kpi(amount, publish_name="Total %s" % n.name)
 
     # Minimize cost
-    mdl.minimize(mdl.sum(qty[f] * f.unit_cost for f in foods))
+    total_cost = mdl.sum(qty[f] * f.unit_cost for f in foods)
+    mdl.add_kpi(total_cost, 'Total cost')
+
+    # add a functional KPI , taking a model and a solution as argument
+    # this KPI counts the number of foods used.
+    def nb_products(mdl_, s_):
+        qvs = mdl_.find_matching_vars(pattern="q_")
+        return sum(1 for qv in qvs if s_[qv] >= 1e-5)
+
+    mdl.add_kpi(nb_products, 'Nb foods')
+    mdl.minimize(total_cost)
 
     return mdl
+
 
 # ----------------------------------------------------------------------------
 # Solve the model and display the result
 # ----------------------------------------------------------------------------
 
-
 if __name__ == '__main__':
-    mdl = build_diet_model()
+    mdl = build_diet_model(ints=True, log_output=True, float_precision=6)
     mdl.print_information()
-    mdl.export_as_lp()
-    if mdl.solve():
-        mdl.float_precision = 3
-        print("* model solved as function:")
-        mdl.print_solution()
+
+    s = mdl.solve()
+    if s:
+        qty_vars = mdl.find_matching_vars(pattern="q_")
+        for fv in qty_vars:
+            food_name = fv.name[2:]
+            print("Buy {0:<25} = {1:9.6g}".format(food_name, fv.solution_value))
+
         mdl.report_kpis()
         # Save the CPLEX solution as "solution.json" program output
         with get_environment().get_output_stream("solution.json") as fp:
