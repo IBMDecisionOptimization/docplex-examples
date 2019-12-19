@@ -67,7 +67,7 @@ def build_diet_model(name='diet', **kwargs):
     nutrients = [Nutrient(*row) for row in NUTRIENTS]
 
     food_nutrients = {(fn[0], nutrients[n].name):
-                       fn[1 + n] for fn in FOOD_NUTRIENTS for n in range(len(NUTRIENTS))}
+                          fn[1 + n] for fn in FOOD_NUTRIENTS for n in range(len(NUTRIENTS))}
 
     # Model
     mdl = Model(name=name, **kwargs)
