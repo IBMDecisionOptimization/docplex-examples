@@ -522,7 +522,7 @@ if __name__ == '__main__':
     # Solve the model and print solution
     solve(model)
 
-    print(model.get_solve_details())
+    print(model.solve_details)
 
     # Save the CPLEX solution as "solution.json" program output
     with get_environment().get_output_stream("solution.json") as fp:

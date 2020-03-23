@@ -136,4 +136,4 @@ if __name__ == '__main__':
         with get_environment().get_output_stream("solution.json") as fp:
             model.solution.export(fp, "json")
     else:
-        print("Problem could not be solved: " + model.get_solve_details().get_status())
+        print("Problem could not be solved: " + model.solve_details.get_status())
