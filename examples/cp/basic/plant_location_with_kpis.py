@@ -99,7 +99,7 @@ for c in range(nbCustomer):
 mdl.add(mdl.minimize(obj))
 
 # Add KPIs
-if compare_natural(context.model.version, '12.9') >= 0:
+if context.model.version is None or compare_natural(context.model.version, '12.9') >= 0:
     mdl.add_kpi(mdl.sum(demand) / mdl.scal_prod(open, capacity), "Occupancy")
     mdl.add_kpi(mdl.min([load[l] / capacity[l] + (1 - open[l]) for l in range(nbLocation)]), "Min occupancy")
 
@@ -113,7 +113,7 @@ print("Solve the model")
 msol = mdl.solve(TimeLimit=10, trace_log=False)  # Set trace_log=True to have a real-time view of the KPIs
 if msol:
     print("   Objective value: {}".format(msol.get_objective_values()[0]))
-    if compare_natural(context.model.version, '12.9') >= 0:
+    if context.model.version is None or compare_natural(context.model.version, '12.9') >= 0:
         print("   KPIs: {}".format(msol.get_kpis()))
 else:
     print("   No solution")
