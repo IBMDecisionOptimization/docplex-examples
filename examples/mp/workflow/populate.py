@@ -16,7 +16,6 @@ This sample can be used to run populate either on a model file (LP or SAV)
 or a DOcplex model instance.
 
 """
-
 from docplex.mp.model_reader import ModelReader
 
 
@@ -118,9 +117,14 @@ def populate_from_model(mdl,
 
 
 if __name__ == "__main__":
-    from examples.delivery.modeling.sport_scheduling import build_sports
-    nm = build_sports()
-    populate_from_model(nm, gap=0.2, pool_capacity=13, pool_intensity=3, verbose=True)
+    from os.path import abspath, dirname, join
+    import sys
+
+    if len(sys.argv) == 1:
+        filename = join(dirname(abspath(__file__)), "sports.lp")
+    else:
+        filename = sys.argv[1]
+    populate_from_file(filename)
 
 
 # * building sport scheduling model instance
