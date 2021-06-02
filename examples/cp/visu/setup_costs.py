@@ -14,9 +14,7 @@ A setup time is considered to be long if it is larger than 30.
 Please refer to documentation for appropriate setup of solving configuration.
 """
 
-from docplex.cp.model import CpoModel
-import docplex.cp.utils_visu as visu
-
+from docplex.cp.model import *
 
 #-----------------------------------------------------------------------------
 # Initialize the problem data
@@ -53,7 +51,6 @@ SETUP_M2 = [
     [18, 55, 34, 26, 28, 32, 40, 12, 44, 25]
 ]
 
-
 # Task duration
 TASK_DURATION = [
     19, 18, 16, 11, 16, 15, 19, 18, 17, 17,
@@ -84,13 +81,12 @@ TASK_TYPE = [
 mdl = CpoModel()
 
 # Build tasks for machine M1 and M2
-tasks_m1 = [mdl.interval_var(name="A{}_M1_TP{}".format(i, TASK_TYPE[i]), optional=True) for i in range(NB_TASKS)]
-tasks_m2 = [mdl.interval_var(name="A{}_M2_TP{}".format(i, TASK_TYPE[i]), optional=True) for i in range(NB_TASKS)]
+tasks_m1 = [interval_var(name='A{}_M1_TP{}'.format(i, TASK_TYPE[i]), optional=True) for i in range(NB_TASKS)]
+tasks_m2 = [interval_var(name='A{}_M2_TP{}'.format(i, TASK_TYPE[i]), optional=True) for i in range(NB_TASKS)]
 
 # Build actual tasks as an alternative between machines
-tasks = [mdl.interval_var(name="A{}_TP{}".format(i, TASK_TYPE[i]), size=TASK_DURATION[i]) for i in range(NB_TASKS)]
-for i in range(NB_TASKS):
-   mdl.add(mdl.alternative(tasks[i], [tasks_m1[i], tasks_m2[i]]))
+tasks = [interval_var(name='A{}_TP{}'.format(i, TASK_TYPE[i]), size=TASK_DURATION[i]) for i in range(NB_TASKS)]
+mdl.add(alternative(tasks[i], [tasks_m1[i], tasks_m2[i]]) for i in range(NB_TASKS))
 
 # Build a map to retrieve task id from variable name (for display purpose)
 task_id = dict()
@@ -99,21 +95,21 @@ for i in range(NB_TASKS):
     task_id[tasks_m2[i].get_name()] = i
 
 # Constrain tasks to no overlap on each machine
-s1 = mdl.sequence_var(tasks_m1, types=TASK_TYPE, name='M1')
-s2 = mdl.sequence_var(tasks_m2, types=TASK_TYPE, name='M2')
-mdl.add(mdl.no_overlap(s1, SETUP_M1, 1))
-mdl.add(mdl.no_overlap(s2, SETUP_M2, 1))
+s1 = sequence_var(tasks_m1, types=TASK_TYPE, name='M1')
+s2 = sequence_var(tasks_m2, types=TASK_TYPE, name='M2')
+mdl.add(no_overlap(s1, SETUP_M1, 1))
+mdl.add(no_overlap(s2, SETUP_M2, 1))
 
-# Minimize the number of "long" setup times on machines.
+# Minimize the number of 'long' setup times on machines.
 nbLongSetups = 0
 for i in range(NB_TASKS):
     tpi = TASK_TYPE[i]
     isLongSetup1 = [1 if 30 <= SETUP_M1[tpi][j] else 0 for j in range(NB_TYPES)] + [0]
     isLongSetup2 = [1 if 30 <= SETUP_M2[tpi][j] else 0 for j in range(NB_TYPES)] + [0]
-    nbLongSetups += mdl.element(mdl.type_of_next(s1, tasks_m1[i], NB_TYPES, NB_TYPES), isLongSetup1)
-    nbLongSetups += mdl.element(mdl.type_of_next(s2, tasks_m2[i], NB_TYPES, NB_TYPES), isLongSetup2)
+    nbLongSetups += element(type_of_next(s1, tasks_m1[i], NB_TYPES, NB_TYPES), isLongSetup1)
+    nbLongSetups += element(type_of_next(s2, tasks_m2[i], NB_TYPES, NB_TYPES), isLongSetup2)
 
-mdl.add(mdl.minimize(nbLongSetups))
+mdl.add(minimize(nbLongSetups))
 
 
 #-----------------------------------------------------------------------------
@@ -126,13 +122,15 @@ def compact(name):
     return task[1:]
 
 # Solve model
-print("Solving model....")
-msol = mdl.solve(TimeLimit=10, FailLimit=1000000)
-print("Solution: ")
-msol.print_solution()
+print('Solving model...')
+res = mdl.solve(TimeLimit=10, FailLimit=1000000)
+print('Solution: ')
+res.print_solution()
+
+import docplex.cp.utils_visu as visu
 
 def showsequence(s, setup):
-    seq = msol.get_var_solution(s)
+    seq = res.get_var_solution(s)
     visu.sequence(name=s.get_name())
     vs = seq.get_value()
     for v in vs:
@@ -144,8 +142,8 @@ def showsequence(s, setup):
         tp2 = TASK_TYPE[task_id[vs[i + 1].get_name()]]
         visu.transition(end, end + setup[tp1][tp2])
 
-if msol and visu.is_visu_enabled():
-    visu.timeline("Solution for SchedTCost")
+if res and visu.is_visu_enabled():
+    visu.timeline('Solution for transition costs')
     showsequence(s1, SETUP_M1)
     showsequence(s2, SETUP_M2)
     visu.show()

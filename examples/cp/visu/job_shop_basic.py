@@ -18,8 +18,7 @@ The objective of the problem is to find a schedule that minimizes the makespan (
 Please refer to documentation for appropriate setup of solving configuration.
 """
 
-from docplex.cp.model import CpoModel
-import docplex.cp.utils_visu as visu
+from docplex.cp.model import *
 import os
 
 
@@ -32,8 +31,8 @@ import os
 # First line contains the number of jobs, and the number of machines.
 # The rest of the file consists of one line per job.
 # Each line contains list of operations, each one given by 2 numbers: machine and duration
-filename = os.path.dirname(os.path.abspath(__file__)) + "/data/jobshop_ft06.data"
-with open(filename, "r") as file:
+filename = os.path.dirname(os.path.abspath(__file__)) + '/data/jobshop_ft06.data'
+with open(filename, 'r') as file:
     NB_JOBS, NB_MACHINES = [int(v) for v in file.readline().split()]
     JOBS = [[int(v) for v in file.readline().split()] for i in range(NB_JOBS)]
 
@@ -57,23 +56,23 @@ DURATION = [[JOBS[j][2 * s + 1] for s in range(NB_MACHINES)] for j in range(NB_J
 mdl = CpoModel()
 
 # Create one interval variable per job operation
-job_operations = [[mdl.interval_var(size=DURATION[j][m], name="O{}-{}".format(j, m)) for m in range(NB_MACHINES)] for j in range(NB_JOBS)]
+job_operations = [[interval_var(size=DURATION[j][m], name='O{}-{}'.format(j,m)) for m in range(NB_MACHINES)] for j in range(NB_JOBS)]
 
 # Each operation must start after the end of the previous
 for j in range(NB_JOBS):
     for s in range(1, NB_MACHINES):
-        mdl.add(mdl.end_before_start(job_operations[j][s - 1], job_operations[j][s]))
+        mdl.add(end_before_start(job_operations[j][s-1], job_operations[j][s]))
 
 # Force no overlap for operations executed on a same machine
 machine_operations = [[] for m in range(NB_MACHINES)]
 for j in range(NB_JOBS):
-    for s in range(0, NB_MACHINES):
+    for s in range(NB_MACHINES):
         machine_operations[MACHINES[j][s]].append(job_operations[j][s])
-for lops in machine_operations:
-    mdl.add(mdl.no_overlap(lops))
+for mops in machine_operations:
+    mdl.add(no_overlap(mops))
 
 # Minimize termination date
-mdl.add(mdl.minimize(mdl.max([mdl.end_of(job_operations[i][NB_MACHINES - 1]) for i in range(NB_JOBS)])))
+mdl.add(minimize(max(end_of(job_operations[i][NB_MACHINES-1]) for i in range(NB_JOBS))))
 
 
 #-----------------------------------------------------------------------------
@@ -81,21 +80,22 @@ mdl.add(mdl.minimize(mdl.max([mdl.end_of(job_operations[i][NB_MACHINES - 1]) for
 #-----------------------------------------------------------------------------
 
 # Solve model
-print("Solving model....")
-msol = mdl.solve(TimeLimit=10)
-print("Solution: ")
-msol.print_solution()
+print('Solving model...')
+res = mdl.solve(TimeLimit=10)
+print('Solution:')
+res.print_solution()
 
 # Draw solution
-if msol and visu.is_visu_enabled():
-    visu.timeline("Solution for job-shop " + filename)
-    visu.panel("Jobs")
+import docplex.cp.utils_visu as visu
+if res and visu.is_visu_enabled():
+    visu.timeline('Solution for job-shop ' + filename)
+    visu.panel('Jobs')
     for i in range(NB_JOBS):
         visu.sequence(name='J' + str(i),
-                      intervals=[(msol.get_var_solution(job_operations[i][j]), MACHINES[i][j], 'M' + str(MACHINES[i][j])) for j in
+                      intervals=[(res.get_var_solution(job_operations[i][j]), MACHINES[i][j], 'M' + str(MACHINES[i][j])) for j in
                                  range(NB_MACHINES)])
-    visu.panel("Machines")
+    visu.panel('Machines')
     for k in range(NB_MACHINES):
         visu.sequence(name='M' + str(k),
-                      intervals=[(msol.get_var_solution(machine_operations[k][i]), k, 'J' + str(i)) for i in range(NB_JOBS)])
+                      intervals=[(res.get_var_solution(machine_operations[k][i]), k, 'J' + str(i)) for i in range(NB_JOBS)])
     visu.show()

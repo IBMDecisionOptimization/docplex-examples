@@ -81,8 +81,7 @@ yields an expected makespan of 4749.6 which is clearly suboptimal.
 Please refer to documentation for appropriate setup of solving configuration.
 """
 
-from docplex.cp.model import CpoModel, INT_MAX
-import docplex.cp.utils_visu as visu
+from docplex.cp.model import *
 import os
 
 
@@ -101,10 +100,10 @@ def next_int_line(f):
 # First line contains the number of jobs, the number of machines and the number of scenarios.
 # The next nb_jobs lines are ordered sequence of machines for each job
 # The next nb_scenarios * nb_jobs lines are the value of durations of each operation for each scenario
-filename = os.path.dirname(os.path.abspath(__file__)) + "/data/stochastic_jobshop_default.data"
+filename = os.path.dirname(os.path.abspath(__file__)) + '/data/stochastic_jobshop_default.data'
 
 data = []
-with open(filename, "r") as file:
+with open(filename, 'r') as file:
     NB_JOBS, NB_MACHINES, NB_SCENARIOS = next_int_line(file)
     MACHINES = [next_int_line(file) for i in range(NB_JOBS)]
     DURATIONS = [[next_int_line(file) for i in range(NB_JOBS)] for k in range(NB_SCENARIOS)]
@@ -119,22 +118,20 @@ mdl = CpoModel()
 
 # Build sub-model corresponding to the kth scenario
 def make_scenario_submodel(k):
-    itvs = [[mdl.interval_var(size=DURATIONS[k][i][j],
-                              name="O{}-{}-{}".format(k, i, j)) for j in range(NB_MACHINES)]
-            for i in range(NB_JOBS)]
+    itvs = [[interval_var(size=DURATIONS[k][i][j], name='O{}-{}-{}'.format(k,i,j)) for j in range(NB_MACHINES)]
+             for i in range(NB_JOBS)]
     mach = [[] for j in range(NB_MACHINES)]
 
     for i in range(NB_JOBS):
         for j in range(NB_MACHINES):
             mach[MACHINES[i][j]].append(itvs[i][j])
             if j > 0:
-                mdl.add(mdl.end_before_start(itvs[i][j - 1], itvs[i][j]))
+                mdl.add(end_before_start(itvs[i][j-1], itvs[i][j]))
 
-    sequences = [mdl.sequence_var(mach[j], name="S{}:M{}".format(k, j)) for j in range(NB_MACHINES)]
-    for s in sequences:
-        mdl.add(mdl.no_overlap(s))
-    makespan = mdl.integer_var(0, INT_MAX, name='makespan' + str(k))
-    mdl.add(makespan == mdl.max([mdl.end_of(itvs[i][NB_MACHINES - 1]) for i in range(NB_JOBS)]))
+    sequences = [sequence_var(mach[j], name='S{}:M{}'.format(k,j)) for j in range(NB_MACHINES)]
+    mdl.add(no_overlap(s) for s in sequences)
+    makespan = integer_var(0, INT_MAX, name='makespan{}'.format(k))
+    mdl.add(makespan == max([end_of(itvs[i][NB_MACHINES-1]) for i in range(NB_JOBS)]))
     return sequences, makespan
 
 # Initialize working variables
@@ -149,11 +146,11 @@ for k in range(NB_SCENARIOS):
         ref_sequences = sequences
     else:
         for j in range(NB_MACHINES):
-            mdl.add(mdl.same_sequence(ref_sequences[j], sequences[j]))
+            mdl.add(same_sequence(ref_sequences[j], sequences[j]))
 
 # Minimize average makespan
-expected_makespan = mdl.sum(makespans) / NB_SCENARIOS
-mdl.add(mdl.minimize(expected_makespan))
+expected_makespan = sum(makespans) / NB_SCENARIOS
+mdl.add(minimize(expected_makespan))
 
 
 #-----------------------------------------------------------------------------
@@ -161,28 +158,27 @@ mdl.add(mdl.minimize(expected_makespan))
 #-----------------------------------------------------------------------------
 
 # Solve model
-print("Solving model....")
-msol = mdl.solve(TimeLimit=10, FailLimit=250000)
-print("Solution: ")
-msol.print_solution()
+print('Solving model...')
+res = mdl.solve(FailLimit=250000,TimeLimit=10)
+print('Solution: ')
+res.print_solution()
 
-if msol and visu.is_visu_enabled():
-    import docplex.cp.utils_visu as visu
+import docplex.cp.utils_visu as visu
+if res and visu.is_visu_enabled():
     import matplotlib.pyplot as plt
-
-    makespan_values = [msol.get_var_solution(m).get_value() for m in makespans]
+    makespan_values = [res.get_var_solution(m).get_value() for m in makespans]
     plt.hist(makespan_values, color='skyblue')
-    plt.axvline(msol.get_objective_values()[0], color='navy', linestyle='dashed', linewidth=2)
-    plt.title("Makespan histogram")
-    plt.xlabel("Value")
-    plt.ylabel("Frequency")
+    plt.axvline(res.get_objective_values()[0], color='navy', linestyle='dashed', linewidth=2)
+    plt.title('Makespan histogram')
+    plt.xlabel('Value')
+    plt.ylabel('Frequency')
 
-    visu.timeline("Solution sequencing for stochastic job-shop " + filename)
-    visu.panel("Machines")
+    visu.timeline('Solution sequencing for stochastic job-shop ' + filename)
+    visu.panel('Machines')
     for j in range(NB_MACHINES):
-        visu.sequence(name='M' + str(j))
-        itvs = msol.get_var_solution(ref_sequences[j]).get_value()
+        visu.sequence(name='M{}'.format(j))
+        itvs = res.get_var_solution(ref_sequences[j]).get_value()
         for v in itvs:
-            k, i, m = v.get_name().split('-')
-            visu.interval(v, int(i), 'O' + i + '-' + m)
+            k,i,m = v.get_name().split('-')
+            visu.interval(v, int(i), 'O{}-{}'.format(i,m))
     visu.show()

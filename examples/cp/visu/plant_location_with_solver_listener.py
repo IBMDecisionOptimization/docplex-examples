@@ -38,7 +38,7 @@ and allows to stop solve when good enough objective or KPIs are reached.
 Log parsing is also activated to retrieve runtime information from it.
 """
 
-from docplex.cp.model import CpoModel
+from docplex.cp.model import *
 from docplex.cp.solver.solver_listener import *
 from docplex.cp.config import context
 from docplex.cp.utils import compare_natural
@@ -50,9 +50,9 @@ import os
 #-----------------------------------------------------------------------------
 
 # Read problem data from a file and convert it as a list of integers
-filename = os.path.dirname(os.path.abspath(__file__)) + "/data/plant_location.data"
+filename = os.path.dirname(os.path.abspath(__file__)) + '/data/plant_location.data'
 data = deque()
-with open(filename, "r") as file:
+with open(filename, 'r') as file:
     for val in file.read().split():
         data.append(int(val))
 
@@ -80,31 +80,28 @@ capacity = list([data.popleft() for p in range(nbLocation)])
 mdl = CpoModel()
 
 # Create variables identifying which location serves each customer
-cust = mdl.integer_var_list(nbCustomer, 0, nbLocation - 1, "CustomerLocation")
+cust = integer_var_list(nbCustomer, 0, nbLocation - 1, 'CustomerLocation')
 
 # Create variables indicating which plant location is open
-open = mdl.integer_var_list(nbLocation, 0, 1, "OpenLocation")
+open = integer_var_list(nbLocation, 0, 1, 'OpenLocation')
 
 # Create variables indicating load of each plant
-load = [mdl.integer_var(0, capacity[p], "PlantLoad_" + str(p)) for p in range(nbLocation)]
+load = [integer_var(0, capacity[p], 'PlantLoad_' + str(p)) for p in range(nbLocation)]
 
 # Associate plant openness to its load
-for p in range(nbLocation):
-      mdl.add(open[p] == (load[p] > 0))
+mdl.add(open[p] == (load[p] > 0) for p in range(nbLocation))
 
 # Add constraints
-mdl.add(mdl.pack(load, cust, demand))
+mdl.add(pack(load, cust, demand))
 
 # Add objective
-obj = mdl.scal_prod(fixedCost, open)
-for c in range(nbCustomer):
-    obj += mdl.element(cust[c], cost[c])
-mdl.add(mdl.minimize(obj))
+obj = scal_prod(fixedCost, open) + sum(element(cust[c], cost[c]) for c in range(nbCustomer))
+mdl.add(minimize(obj))
 
 # Add KPIs
 if compare_natural(context.model.version, '12.9') >= 0:
-    mdl.add_kpi(mdl.sum(demand) / mdl.scal_prod(open, capacity), "Average Occupancy")
-    mdl.add_kpi(mdl.min([load[l] / capacity[l] + (1 - open[l]) for l in range(nbLocation)]), "Min occupancy")
+    mdl.add_kpi(sum(demand) / scal_prod(open, capacity), 'Average Occupancy')
+    mdl.add_kpi(min([load[l] / capacity[l] + (1 - open[l]) for l in range(nbLocation)]), 'Min occupancy')
 
 
 #-----------------------------------------------------------------------------
@@ -115,6 +112,6 @@ if context.visu_enabled:
     mdl.add_solver_listener(SolverProgressPanelListener(parse_log=True))
 
 # Solve the model
-print("Solve the model")
-msol = mdl.solve(TimeLimit=20, LogPeriod=1000)
-msol.write()
+print('Solve the model')
+res = mdl.solve(TimeLimit=20, LogPeriod=1000)
+res.write()

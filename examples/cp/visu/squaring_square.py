@@ -17,8 +17,7 @@ Requires installation of numpy (installer) and following python packages:
 Please refer to documentation for appropriate setup of solving configuration.
 """
 
-from docplex.cp.model import CpoModel
-import docplex.cp.utils_visu as visu
+from docplex.cp.model import *
 
 
 #-----------------------------------------------------------------------------
@@ -40,24 +39,24 @@ NB_SUBSQUARE = len(SIZE_SUBSQUARE)
 mdl = CpoModel()
 
 # Create array of variables for subsquares
-vx = [mdl.interval_var(size=SIZE_SUBSQUARE[i], name="X" + str(i), end=(0, SIZE_SQUARE)) for i in range(NB_SUBSQUARE)]
-vy = [mdl.interval_var(size=SIZE_SUBSQUARE[i], name="Y" + str(i), end=(0, SIZE_SQUARE)) for i in range(NB_SUBSQUARE)]
+vx = [interval_var(size=SIZE_SUBSQUARE[i], name='X{}'.format(i), end=(0, SIZE_SQUARE)) for i in range(NB_SUBSQUARE)]
+vy = [interval_var(size=SIZE_SUBSQUARE[i], name='Y{}'.format(i), end=(0, SIZE_SQUARE)) for i in range(NB_SUBSQUARE)]
 
 # Create dependencies between variables
 for i in range(len(SIZE_SUBSQUARE)):
     for j in range(i):
-        mdl.add(  (mdl.end_of(vx[i]) <= mdl.start_of(vx[j])) | (mdl.end_of(vx[j]) <= mdl.start_of(vx[i]))
-                | (mdl.end_of(vy[i]) <= mdl.start_of(vy[j])) | (mdl.end_of(vy[j]) <= mdl.start_of(vy[i])))
+        mdl.add(  (end_of(vx[i]) <= start_of(vx[j])) | (end_of(vx[j]) <= start_of(vx[i]))
+                | (end_of(vy[i]) <= start_of(vy[j])) | (end_of(vy[j]) <= start_of(vy[i])))
 
 # To speed-up the search, create cumulative expressions on each dimension
-rx = mdl.sum([mdl.pulse(vx[i], SIZE_SUBSQUARE[i]) for i in range(NB_SUBSQUARE)])
-mdl.add(mdl.always_in(rx, (0, SIZE_SQUARE), SIZE_SQUARE, SIZE_SQUARE))
+rx = sum([pulse(vx[i], SIZE_SUBSQUARE[i]) for i in range(NB_SUBSQUARE)])
+mdl.add(always_in(rx, (0, SIZE_SQUARE), SIZE_SQUARE, SIZE_SQUARE))
 
-ry = mdl.sum([mdl.pulse(vy[i], SIZE_SUBSQUARE[i]) for i in range(NB_SUBSQUARE)])
-mdl.add(mdl.always_in(ry, (0, SIZE_SQUARE), SIZE_SQUARE, SIZE_SQUARE))
+ry = sum([pulse(vy[i], SIZE_SUBSQUARE[i]) for i in range(NB_SUBSQUARE)])
+mdl.add(always_in(ry, (0, SIZE_SQUARE), SIZE_SQUARE, SIZE_SQUARE))
 
 # Define search phases, also to speed-up the search
-mdl.set_search_phases([mdl.search_phase(vx), mdl.search_phase(vy)])
+mdl.set_search_phases([search_phase(vx), search_phase(vy)])
 
 
 #-----------------------------------------------------------------------------
@@ -65,23 +64,24 @@ mdl.set_search_phases([mdl.search_phase(vx), mdl.search_phase(vy)])
 #-----------------------------------------------------------------------------
 
 # Solve model
-print("Solving model....")
-msol = mdl.solve(TimeLimit=20, LogPeriod=50000)
-print("Solution: ")
-msol.print_solution()
+print('Solving model...')
+res = mdl.solve(TimeLimit=20, LogPeriod=50000)
+print('Solution: ')
+res.print_solution()
 
-if msol and visu.is_visu_enabled():
+import docplex.cp.utils_visu as visu
+if res and visu.is_visu_enabled():
     import matplotlib.pyplot as plt
     import matplotlib.cm as cm
     from matplotlib.patches import Polygon
 
     # Plot external square
-    print("Plotting squares....")
+    print('Plotting squares...')
     fig, ax = plt.subplots()
     plt.plot((0, 0), (0, SIZE_SQUARE), (SIZE_SQUARE, SIZE_SQUARE), (SIZE_SQUARE, 0))
     for i in range(len(SIZE_SUBSQUARE)):
         # Display square i
-        sx, sy = msol.get_var_solution(vx[i]), msol.get_var_solution(vy[i])
+        sx, sy = res.get_var_solution(vx[i]), res.get_var_solution(vy[i])
         (sx1, sx2, sy1, sy2) = (sx.get_start(), sx.get_end(), sy.get_start(), sy.get_end())
         poly = Polygon([(sx1, sy1), (sx1, sy2), (sx2, sy2), (sx2, sy1)], fc=cm.Set2(float(i) / len(SIZE_SUBSQUARE)))
         ax.add_patch(poly)
