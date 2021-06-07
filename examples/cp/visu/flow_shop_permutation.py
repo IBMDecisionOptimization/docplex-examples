@@ -16,8 +16,7 @@ on all other machines.
 Please refer to documentation for appropriate setup of solving configuration.
 """
 
-from docplex.cp.model import CpoModel
-import docplex.cp.utils_visu as visu
+from docplex.cp.model import *
 import os
 
 
@@ -30,10 +29,10 @@ import os
 # First line contains the number of jobs, and the number of machines.
 # The rest of the file consists of one line per job that contains the list of
 # operations given as durations for each machines.
-filename = os.path.dirname(os.path.abspath(__file__)) + "/data/flowshop_default.data"
-with open(filename, "r") as file:
+filename = os.path.dirname(os.path.abspath(__file__)) + '/data/flowshop_default.data'
+with open(filename, 'r') as file:
     NB_JOBS, NB_MACHINES = [int(v) for v in file.readline().split()]
-    JOB_DURATIONS = [[int(v) for v in file.readline().split()] for i in range(NB_JOBS)]
+    OP_DURATIONS = [[int(v) for v in file.readline().split()] for i in range(NB_JOBS)]
 
 
 #-----------------------------------------------------------------------------
@@ -44,26 +43,26 @@ with open(filename, "r") as file:
 mdl = CpoModel()
 
 # Create one interval variable per job operation
-job_operations = [[mdl.interval_var(size=JOB_DURATIONS[j][m], name="J{}-M{}".format(j, m)) for m in range(NB_MACHINES)] for j in range(NB_JOBS)]
+operations = [[interval_var(size=OP_DURATIONS[j][m], name='J{}-M{}'.format(j, m)) for m in range(NB_MACHINES)] for j in range(NB_JOBS)]
 
 # Create sequence of operation for each machine
-op_sequences = [mdl.sequence_var([job_operations[i][j] for i in range(NB_JOBS)], name="M{}".format(j)) for j in range(NB_MACHINES)]
+op_sequences = [sequence_var([operations[i][j] for i in range(NB_JOBS)], name='M{}'.format(j)) for j in range(NB_MACHINES)]
 
 # Force each operation to start after the end of the previous
 for j in range(NB_JOBS):
     for m in range(1, NB_MACHINES):
-        mdl.add(mdl.end_before_start(job_operations[j][m - 1], job_operations[j][m]))
+        mdl.add(end_before_start(operations[j][m-1], operations[j][m]))
 
 # Force no overlap for operations executed on a same machine
 for m in range(NB_MACHINES):
-    mdl.add(mdl.no_overlap(op_sequences[m]))
+    mdl.add(no_overlap(op_sequences[m]))
 
 # Force sequences to be all identical on all machines
 for m in range(1, NB_MACHINES):
-    mdl.add(mdl.same_sequence(op_sequences[0], op_sequences[m]))
+    mdl.add(same_sequence(op_sequences[0], op_sequences[m]))
 
 # Minimize termination date
-mdl.add(mdl.minimize(mdl.max([mdl.end_of(job_operations[i][NB_MACHINES - 1]) for i in range(NB_JOBS)])))
+mdl.add(minimize(max([end_of(operations[i][NB_MACHINES-1]) for i in range(NB_JOBS)])))
 
 
 #-----------------------------------------------------------------------------
@@ -71,20 +70,19 @@ mdl.add(mdl.minimize(mdl.max([mdl.end_of(job_operations[i][NB_MACHINES - 1]) for
 #-----------------------------------------------------------------------------
 
 # Solve model
-print("Solving model....")
-msol = mdl.solve(FailLimit=10000, TimeLimit=10)
-print("Solution: ")
-msol.print_solution()
+print('Solving model...')
+res = mdl.solve(FailLimit=10000, TimeLimit=10)
 
 # Draw solution
-if msol and visu.is_visu_enabled():
-    visu.timeline("Solution for permutation flow-shop " + filename)
-    visu.panel("Jobs")
+import docplex.cp.utils_visu as visu
+if res and visu.is_visu_enabled():
+    visu.timeline('Solution for permutation flow-shop ' + filename)
+    visu.panel('Jobs')
     for i in range(NB_JOBS):
         visu.sequence(name='J' + str(i),
-                      intervals=[(msol.get_var_solution(job_operations[i][j]), j, 'M' + str(j)) for j in range(NB_MACHINES)])
-    visu.panel("Machines")
+                      intervals=[(res.get_var_solution(operations[i][j]), j, 'M' + str(j)) for j in range(NB_MACHINES)])
+    visu.panel('Machines')
     for j in range(NB_MACHINES):
         visu.sequence(name='M' + str(j),
-                      intervals=[(msol.get_var_solution(job_operations[i][j]), j, 'J' + str(i)) for i in range(NB_JOBS)])
+                      intervals=[(res.get_var_solution(operations[i][j]), j, 'J' + str(i)) for i in range(NB_JOBS)])
     visu.show()

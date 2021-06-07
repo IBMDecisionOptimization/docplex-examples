@@ -16,8 +16,7 @@ operations is minimized.
 Please refer to documentation for appropriate setup of solving configuration.
 """
 
-from docplex.cp.model import CpoModel
-import docplex.cp.utils_visu as visu
+from docplex.cp.model import *
 import os
 
 
@@ -32,8 +31,8 @@ import os
 # First integer is the number of job steps, followed by the choices for each step.
 # For each step, first integer indicates the number of choices, followed
 # by the choices expressed with two integers: machine and duration
-filename = os.path.dirname(os.path.abspath(__file__)) + "/data/jobshopflex_default.data"
-with open(filename, "r") as file:
+filename = os.path.dirname(os.path.abspath(__file__)) + '/data/jobshopflex_default.data'
+with open(filename, 'r') as file:
     NB_JOBS, NB_MACHINES = [int(v) for v in file.readline().split()]
     list_jobs = [[int(v) for v in file.readline().split()] for i in range(NB_JOBS)]
 
@@ -68,41 +67,27 @@ for jline in list_jobs:
 mdl = CpoModel()
 
 # Following code creates:
-# - creates one interval variable for each possible operation choice
-# - creates one interval variable for each operation, as an alternative of all operation choices
+# - creates one interval variable 'ops' for each possible operation choice
+# - creates one interval variable mops' for each operation, as an alternative of all operation choices
 # - setup precedence constraints between operations of each job
-# - fills machine_operations structure that list all operations that reside on a machine
+# - creates a no_overlap constraint an the operations of each machine
 
-# Initialize working variables
-job_number = {}      # Job_number for each operation choice (for display)
-all_operations = []  # List of all operations
-machine_operations = [[] for m in range(NB_MACHINES)] # All choices per machine
+ops  = { (j,o) : interval_var(name='J{}_O{}'.format(j,o))
+         for j,J in enumerate(JOBS) for o,O in enumerate(J)}
+mops = { (j,o,k,m) : interval_var(name='J{}_O{}_C{}_M{}'.format(j,o,k,m), optional=True, size=d)
+         for j,J in enumerate(JOBS) for o,O in enumerate(J) for k, (m, d) in enumerate(O)}
 
-# Loop on all jobs/operations/choices
-for jx, job in enumerate(JOBS):
-    op_vars = []
-    for ox, op in enumerate(job):
-        choice_vars = []
-        for cx, (m, d) in enumerate(op):
-            cv = mdl.interval_var(name="J{}_O{}_C{}_M{}".format(jx, ox, cx, m), optional=True, size=d)
-            job_number[cv.get_name()] = jx
-            choice_vars.append(cv)
-            machine_operations[m].append(cv)
-        # Create alternative
-        jv = mdl.interval_var(name="J{}_O{}".format(jx, ox))
-        mdl.add(mdl.alternative(jv, choice_vars))
-        op_vars.append(jv)
-        # Add precedence
-        if ox > 0:
-            mdl.add(mdl.end_before_start(op_vars[ox - 1], op_vars[ox]))
-    all_operations.extend(op_vars)
+# Precedence constraints between operations of a job
+mdl.add(end_before_start(ops[j,o], ops[j,o-1]) for j,o in ops if 0<o)
+
+# Alternative constraints
+mdl.add(alternative(ops[j,o], [mops[a] for a in mops if a[0:2]==(j,o)]) for j,o in ops)
 
 # Add no_overlap constraint between operations executed on the same machine
-for lops in machine_operations:
-    mdl.add(mdl.no_overlap(lops))
+mdl.add(no_overlap(mops[a] for a in mops if a[3]==m) for m in range(NB_MACHINES))
 
 # Minimize termination date
-mdl.add(mdl.minimize(mdl.max([mdl.end_of(op) for op in all_operations])))
+mdl.add(minimize(max(end_of(ops[j,o]) for j,o in ops)))
 
 
 #-----------------------------------------------------------------------------
@@ -110,20 +95,22 @@ mdl.add(mdl.minimize(mdl.max([mdl.end_of(op) for op in all_operations])))
 #-----------------------------------------------------------------------------
 
 # Solve model
-print("Solving model....")
-msol = mdl.solve(FailLimit=100000, TimeLimit=10)
-print("Solution: ")
-msol.print_solution()
+print('Solving model...')
+res = mdl.solve(FailLimit=100000,TimeLimit=10)
+print('Solution:')
+res.print_solution()
 
 # Draw solution
-if msol and visu.is_visu_enabled():
-    visu.timeline("Solution for flexible job-shop " + filename)
-    visu.panel("Machines")
-    for j in range(NB_MACHINES):
-        visu.sequence(name='M' + str(j))
-        for v in machine_operations[j]:
-            itv = msol.get_var_solution(v)
-            if itv.is_present():
-                jn = job_number[v.get_name()]
-                visu.interval(itv, jn, 'J' + str(jn))
+import docplex.cp.utils_visu as visu
+if res and visu.is_visu_enabled():
+# Draw solution
+    visu.timeline('Solution for flexible job-shop ' + filename)
+    visu.panel('Machines')
+    for m in range(NB_MACHINES):
+        visu.sequence(name='M' + str(m))
+        for a in mops:
+            if a[3]==m:
+                itv = res.get_var_solution(mops[a])
+                if itv.is_present():
+                    visu.interval(itv, a[0], 'J{}'.format(a[0]))
     visu.show()

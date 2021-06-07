@@ -20,9 +20,7 @@ the workers assigned to the tasks while respecting the deadlines.
 Please refer to documentation for appropriate setup of solving configuration.
 """
 
-from docplex.cp.model import CpoModel, INTERVAL_MIN
-import docplex.cp.utils_visu as visu
-
+from docplex.cp.model import *
 
 #-----------------------------------------------------------------------------
 # Initialize the problem data
@@ -30,54 +28,40 @@ import docplex.cp.utils_visu as visu
 
 NB_HOUSES = 5
 DEADLINE = 318
-WORKER_NAMES = ['Joe', 'Jack', 'Jim']
-NB_WORKERS = len(WORKER_NAMES)
-
-# House building task descriptor
-class BuildingTask(object):
-    def __init__(self, name, duration, skills):
-        self.name = name
-        self.duration = duration  # Task duration
-        self.skills = skills      # Skills of each worker for this task
+WORKERS = ['Joe', 'Jack', 'Jim']
+NB_WORKERS = len(WORKERS)
 
 # List of tasks to be executed for each house
-MASONRY   = BuildingTask('masonry',   35, [9, 5, 0])
-CARPENTRY = BuildingTask('carpentry', 15, [7, 0, 5])
-PLUMBING  = BuildingTask('plumbing',  40, [0, 7, 0])
-CEILING   = BuildingTask('ceiling',   15, [5, 8, 0])
-ROOFING   = BuildingTask('roofing',    5, [6, 7, 0])
-PAINTING  = BuildingTask('painting',  10, [0, 9, 6])
-WINDOWS   = BuildingTask('windows',    5, [8, 0, 5])
-FACADE    = BuildingTask('facade',    10, [5, 5, 0])
-GARDEN    = BuildingTask('garden',     5, [5, 5, 9])
-MOVING    = BuildingTask('moving',     5, [6, 0, 8])
+TASKS = {
+  'masonry'   : (35, [9, 5, 0],  1),
+  'carpentry' : (15, [7, 0, 5],  2),
+  'plumbing'  : (40, [0, 7, 0],  3),
+  'ceiling'   : (15, [5, 8, 0],  4),
+  'roofing'   : ( 5, [6, 7, 0],  5),
+  'painting'  : (10, [0, 9, 6],  6),
+  'windows'   : ( 5, [8, 0, 5],  7),
+  'facade'    : (10, [5, 5, 0],  8),
+  'garden'    : ( 5, [5, 5, 9],  9),
+  'moving'    : ( 5, [6, 0, 8], 10)
+}
 
 # Tasks precedence constraints (each tuple (X, Y) means X ends before start of Y)
-PRECEDENCES = ( (MASONRY, CARPENTRY),
-                (MASONRY, PLUMBING),
-                (MASONRY, CEILING),
-                (CARPENTRY, ROOFING),
-                (CEILING, PAINTING),
-                (ROOFING, WINDOWS),
-                (ROOFING, FACADE),
-                (PLUMBING, FACADE),
-                (ROOFING, GARDEN),
-                (PLUMBING, GARDEN),
-                (WINDOWS, MOVING),
-                (FACADE, MOVING),
-                (GARDEN, MOVING),
-                (PAINTING, MOVING),
-            )
-
-#-----------------------------------------------------------------------------
-# Prepare the data for modeling
-#-----------------------------------------------------------------------------
-
-# Assign an index to tasks
-ALL_TASKS = (MASONRY, CARPENTRY, PLUMBING, CEILING, ROOFING, PAINTING, WINDOWS, FACADE, GARDEN, MOVING)
-for i in range(len(ALL_TASKS)):
-    ALL_TASKS[i].id = i
-
+PRECEDENCES = [
+  ('masonry',   'carpentry'),
+  ('masonry',   'plumbing'),
+  ('masonry',   'ceiling'),
+  ('carpentry', 'roofing'),
+  ('ceiling',   'painting'),
+  ('roofing',   'windows'),
+  ('roofing',   'facade'),
+  ('plumbing',  'facade'),
+  ('roofing',   'garden'),
+  ('plumbing',  'garden'),
+  ('windows',   'moving'),
+  ('facade',    'moving'),
+  ('garden',    'moving'),
+  ('painting',  'moving'),
+]
 
 #-----------------------------------------------------------------------------
 # Build the model
@@ -89,7 +73,6 @@ mdl = CpoModel()
 # Initialize model variable sets
 total_skill = 0                                 # Expression computing total of skills
 worker_tasks = [[] for w in range(NB_WORKERS)]  # Tasks (interval variables) assigned to a each worker
-desc = dict()                                   # Map retrieving task from interval variable
 
 # Utility function
 def make_house(loc, deadline):
@@ -99,27 +82,19 @@ def make_house(loc, deadline):
     '''
 
     # Create interval variable for each task for this house
-    tasks = [mdl.interval_var(size=t.duration,
-                          end=(INTERVAL_MIN, deadline),
-                          name='H' + str(loc) + '-' + t.name) for t in ALL_TASKS]
+    tasks = {t: interval_var(size=TASKS[t][0], end=(0, deadline), name='H{}-{}'.format(loc,t)) for t in TASKS}
 
     # Add precedence constraints
-    for p, s in PRECEDENCES:
-        mdl.add(mdl.end_before_start(tasks[p.id], tasks[s.id]))
+    mdl.add(end_before_start(tasks[p], tasks[s]) for p,s in PRECEDENCES)
 
     # Allocate tasks to workers
     global total_skill
-    for t in ALL_TASKS:
-        allocs = []
-        for w in range(NB_WORKERS):
-            if t.skills[w] > 0:
-                wt = mdl.interval_var(optional=True, name="H{}-{}({})".format(loc, t.name, WORKER_NAMES[w]))
-                worker_tasks[w].append(wt)
-                allocs.append(wt)
-                total_skill += (t.skills[w] * mdl.presence_of(wt))
-                desc[wt] = t
-        mdl.add(mdl.alternative(tasks[t.id], allocs))
-
+    allocs = { (t,w) : interval_var(optional=True, name='H{}-{}-{}'.format(loc, t, w)) for t in TASKS for w in range(NB_WORKERS) if TASKS[t][1][w] > 0 }
+    total_skill += sum((TASKS[t][1][w] * presence_of(allocs[t,w])) for t,w in allocs)
+    for t in TASKS:
+        mdl.add(alternative(tasks[t], [allocs[t2,w] for t2,w in allocs if t==t2]))
+    for t,w in allocs:
+        worker_tasks[w].append(allocs[t,w])
 
 # Make houses
 for h in range(NB_HOUSES):
@@ -127,10 +102,10 @@ for h in range(NB_HOUSES):
 
 # Avoid overlapping between tasks of each worker
 for w in range(NB_WORKERS):
-    mdl.add(mdl.no_overlap(worker_tasks[w]))
+    mdl.add(no_overlap(worker_tasks[w]))
 
 # Maximize total of skills
-mdl.add(mdl.maximize(total_skill))
+mdl.add(maximize(total_skill))
 
 
 #-----------------------------------------------------------------------------
@@ -140,28 +115,25 @@ mdl.add(mdl.maximize(total_skill))
 def compact(name):
     # Example: H3-garden -> G3
     #           ^ ^
-    loc, task = name[1:].split('-', 1)
-    return task[0].upper() + loc
+    loc, task, worker = name[1:].split('-', 2)
+    # Returns color index and compacted name
+    return int(TASKS[task][2]), task[0].upper() + loc
 
 # Solve model
-print("Solving model....")
-msol = mdl.solve(FailLimit=10000, TimeLimit=10)
-print("Solution: ")
-msol.print_solution()
+print('Solving model...')
+res = mdl.solve(FailLimit=10000, TimeLimit=10)
+
+print('Solution:')
+res.print_solution()
 
 # Draw solution
-if msol and visu.is_visu_enabled():
-    visu.timeline('Solution SchedOptional', 0, DEADLINE)
+import docplex.cp.utils_visu as visu
+if res and visu.is_visu_enabled():
+    visu.timeline('Solution house building', 0, DEADLINE)
     for w in range(NB_WORKERS):
-        visu.sequence(name=WORKER_NAMES[w])
+        visu.sequence(name=WORKERS[w])
         for t in worker_tasks[w]:
-            wt = msol.get_var_solution(t)
+            wt = res.get_var_solution(t)
             if wt.is_present():
-                if desc[t].skills[w] == max(desc[t].skills):
-                    # Green-like color when task is using the most skilled worker
-                    color = 'lightgreen'
-                else:
-                    # Red-like color when task does not use the most skilled worker
-                    color = 'salmon'
-                visu.interval(wt, color, compact(wt.get_name()))
+                visu.interval(wt, *compact(wt.get_name()))
     visu.show()

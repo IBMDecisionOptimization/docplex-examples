@@ -27,8 +27,7 @@ and resource constraints.
 Please refer to documentation for appropriate setup of solving configuration.
 """
 
-from docplex.cp.model import CpoModel, CpoStepFunction, INTERVAL_MIN, INTERVAL_MAX
-import docplex.cp.utils_visu as visu
+from docplex.cp.model import *
 import os
 import json
 
@@ -38,7 +37,7 @@ import json
 #-----------------------------------------------------------------------------
 
 # Load input data from json file
-filename = os.path.dirname(os.path.abspath(__file__)) + "/data/rcpspmm_default.json"
+filename = os.path.dirname(os.path.abspath(__file__)) + '/data/rcpspmm_default.json'
 with open(filename, 'r') as f:
     jstr = f.read()
 JSON_DATA = json.loads(jstr)
@@ -64,7 +63,7 @@ NB_TASKS = len(TASKS)
 MODES = []
 for t in TASKS:
    for i, m in enumerate(t['modes']):
-       m['id'] = "T{}-M{}".format(t['id'], i + 1)
+       m['id'] = 'T{}-M{}'.format(t['id'], i + 1)
        MODES.append(m)
 
 
@@ -76,46 +75,31 @@ for t in TASKS:
 mdl = CpoModel()
 
 # Create one interval variable per task
-tasks = {t['id']: mdl.interval_var(name="T{}".format(t['id'])) for t in TASKS}
+tasks = {t['id']: interval_var(name='T{}'.format(t['id'])) for t in TASKS}
 
 # Add precedence constraints
-for t in TASKS:
-    for s in t['successors']:
-        mdl.add(mdl.end_before_start(tasks[t['id']], tasks[s]))
+mdl.add(end_before_start(tasks[t['id']], tasks[s]) for t in TASKS for s in t['successors'])
 
-# Create one optional interval variable per task mode and add alternatives for tasks
-modes = {}  # Map of all modes
-for t in TASKS:
-    tmds = [mdl.interval_var(name=m['id'], optional=True, size=m['duration']) for m in t['modes']]
-    mdl.add(mdl.alternative(tasks[t['id']], tmds))
-    for m in tmds:
-        modes[m.name] = m
+# Create one optional interval variable per task mode
+modes = { m['id']: interval_var(name=m['id'], optional=True, size=m['duration']) for t in TASKS for m in t['modes'] }
 
-# Initialize pulse functions for renewable and non renewable resources
-renewables = [mdl.pulse((0, 0), 0) for j in range(NB_RENEWABLE)]
-non_renewables = [0 for j in range(NB_NON_RENEWABLE)]
-for m in MODES:
-    dren = m['demandRenewable']
-    dnren = m['demandNonRenewable']
-    for j in range(NB_RENEWABLE):
-        dem = m['demandRenewable'][j]
-        if dem > 0:
-            renewables[j] += mdl.pulse(modes[m['id']], dem)
-    for j in range(NB_NON_RENEWABLE):
-        dem = m['demandNonRenewable'][j]
-        if dem > 0:
-            non_renewables[j] += dem * mdl.presence_of(modes[m['id']])
+# Add alternative constraints for tasks
+mdl.add(alternative(tasks[t['id']], [ modes[m['id']] for m in t['modes'] ]) for t in TASKS)
+
+# Initialize cumul functions for renewable and non renewable resources
+renewables     = [ sum(pulse(modes[m['id']], m['demandRenewable'][j]) for m in MODES if m['demandRenewable'][j] > 0)
+                   for j in range(NB_RENEWABLE)]
+non_renewables = [ sum(m['demandNonRenewable'][j]*presence_of(modes[m['id']]) for m in MODES if m['demandNonRenewable'][j] > 0 )
+                   for j in range(NB_NON_RENEWABLE)]
 
 # Constrain renewable resources capacity
-for j in range(NB_RENEWABLE):
-    mdl.add(mdl.always_in(renewables[j], (INTERVAL_MIN, INTERVAL_MAX), 0, CAPACITIES_RENEWABLE[j]))
+mdl.add(renewables[j] <= CAPACITIES_RENEWABLE[j] for j in range(NB_RENEWABLE))
 
 # Constrain non-renewable resources capacity
-for j in range(NB_NON_RENEWABLE):
-    mdl.add(non_renewables[j] <= CAPACITIES_NON_RENEWABLE[j])
+mdl.add(non_renewables[j] <= CAPACITIES_NON_RENEWABLE[j] for j in range(NB_NON_RENEWABLE))
 
 # Minimize overall schedule end date
-mdl.add(mdl.minimize(mdl.max([mdl.end_of(t) for t in tasks.values()])))
+mdl.add(minimize(max([end_of(t) for t in tasks.values()])))
 
 
 #-----------------------------------------------------------------------------
@@ -123,28 +107,29 @@ mdl.add(mdl.minimize(mdl.max([mdl.end_of(t) for t in tasks.values()])))
 #-----------------------------------------------------------------------------
 
 # Solve model
-print("Solving model....")
-msol = mdl.solve(FailLimit=30000, TimeLimit=10)
-print("Solution: ")
-msol.print_solution()
+print('Solving model...')
+res = mdl.solve(FailLimit=30000, TimeLimit=10)
+print('Solution: ')
+res.print_solution()
 
-if msol and visu.is_visu_enabled():
+import docplex.cp.utils_visu as visu
+if res and visu.is_visu_enabled():
     load = [CpoStepFunction() for j in range(NB_RENEWABLE)]
     for m in MODES:
-        itv = msol.get_var_solution(modes[m['id']])
+        itv = res.get_var_solution(modes[m['id']])
         if itv.is_present():
             for j in range(NB_RENEWABLE):
                 dem = m['demandRenewable'][j]
                 if dem > 0:
                     load[j].add_value(itv.get_start(), itv.get_end(), dem)
 
-    visu.timeline("Solution for RCPSPMM " + filename)
-    visu.panel("Tasks")
+    visu.timeline('Solution for RCPSPMM ' + filename)
+    visu.panel('Tasks')
     for t in TASKS:
         tid = t['id']
-        visu.interval(msol.get_var_solution(tasks[tid]), tid, str(tid))
+        visu.interval(res.get_var_solution(tasks[tid]), tid, str(tid))
     for j in range(NB_RENEWABLE):
-        visu.panel("R " + str(j + 1))
+        visu.panel('R' + str(j + 1))
         visu.function(segments=[(INTERVAL_MIN, INTERVAL_MAX, CAPACITIES_RENEWABLE[j])], style='area', color='lightgrey')
         visu.function(segments=load[j], style='area', color=j)
     visu.show()
