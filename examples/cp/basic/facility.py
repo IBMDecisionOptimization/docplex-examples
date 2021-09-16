@@ -35,10 +35,10 @@ from collections import namedtuple
 # Initialize the problem data
 #-----------------------------------------------------------------------------
 
-Warehouse = namedtuple('Wharehouse', ('city',      # Name of the city
-                                      'capacity',  # Capacity of the warehouse
-                                      'cost',      # Warehouse building cost
-                                      ))
+Warehouse = namedtuple('Warehouse', ('city',      # Name of the city
+                                     'capacity',  # Capacity of the warehouse
+                                     'cost',      # Warehouse building cost
+                                     ))
 
 # List of warehouses
 WAREHOUSES = (Warehouse("Bonn",     3, 480),
