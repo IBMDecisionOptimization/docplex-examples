@@ -271,9 +271,10 @@ class ShiftActivity(object):
 
 def solve(model, **kwargs):
     # Here, we set the number of threads for CPLEX to 2 and set the time limit to 2mins.
-    model.parameters.threads = 2
-    model.parameters.mip.tolerances.mipgap = 0.000001
-    model.parameters.timelimit = 120  # nurse should not take more than that !
+    if kwargs.pop('parameter_sets', None) == None:
+        model.parameters.threads = 2
+        model.parameters.mip.tolerances.mipgap = 0.000001
+        model.parameters.timelimit = 120  # nurse should not take more than that !
     sol = model.solve(log_output=True, **kwargs)
     if sol is not None:
         print("solution for a cost of {}".format(model.objective_value))
@@ -527,3 +528,18 @@ if __name__ == '__main__':
     # Save the CPLEX solution as "solution.json" program output
     with get_environment().get_output_stream("solution.json") as fp:
         model.solution.export(fp, "json")
+
+    model = build()
+    paramsets = model.build_multiobj_paramsets(timelimits=[70,60,50] , mipgaps=[0.000003, 0.000002, 0.000001])
+    solve(model, clean_before_solve=True, parameter_sets=paramsets)
+    print(model.solve_details)
+
+    model = build()
+    paramsets = model.create_parameter_sets()
+    cplex = model.get_cplex()
+    for i,p in enumerate(paramsets):
+        p.add(cplex.parameters.timelimit, 70+i)
+        p.add(cplex.parameters.mip.tolerances.mipgap, 0.000001*i)
+        p.add(cplex.parameters.threads, 2+i)
+    solve(model, clean_before_solve=True, parameter_sets=paramsets)
+    print(model.solve_details)
