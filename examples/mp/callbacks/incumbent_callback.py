@@ -79,7 +79,6 @@ if __name__ == "__main__":
     love.register_callback(CustomIncumbentCallback)
 
     love.parameters.mip.interval = 1
-    love.parameters.preprocessing.linear = 0
 
     s10 = love.solve(log_output=False)
     assert s10 is not None

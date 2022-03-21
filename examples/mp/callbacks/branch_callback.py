@@ -82,7 +82,6 @@ def add_branch_callback(docplex_model, logged=False):
     bcb = docplex_model.register_callback(MyBranch)
 
     docplex_model.parameters.mip.interval = 1
-    docplex_model.parameters.preprocessing.linear = 0
 
     solution = docplex_model.solve(log_output=logged)
     assert solution is not None
