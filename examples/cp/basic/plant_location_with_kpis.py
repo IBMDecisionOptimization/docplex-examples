@@ -37,7 +37,7 @@ The KPIs are displayed in the log whenever an improving solution is found and at
 """
 
 from docplex.cp.model import CpoModel
-from docplex.cp.config import context
+import docplex.cp.solver.solver as solver
 from docplex.cp.utils import compare_natural
 from collections import deque
 import os
@@ -99,7 +99,8 @@ for c in range(nbCustomer):
 mdl.add(mdl.minimize(obj))
 
 # Add KPIs
-if context.model.version is None or compare_natural(context.model.version, '12.9') >= 0:
+sol_version = solver.get_solver_version()
+if compare_natural(sol_version, '12.9') >= 0:
     mdl.add_kpi(mdl.sum(demand) / mdl.scal_prod(open, capacity), "Occupancy")
     mdl.add_kpi(mdl.min([load[l] / capacity[l] + (1 - open[l]) for l in range(nbLocation)]), "Min occupancy")
 
@@ -113,7 +114,7 @@ print("Solve the model")
 msol = mdl.solve(TimeLimit=10, trace_log=False)  # Set trace_log=True to have a real-time view of the KPIs
 if msol:
     print("   Objective value: {}".format(msol.get_objective_values()[0]))
-    if context.model.version is None or compare_natural(context.model.version, '12.9') >= 0:
+    if compare_natural(sol_version, '12.9') >= 0:
         print("   KPIs: {}".format(msol.get_kpis()))
 else:
     print("   No solution")
