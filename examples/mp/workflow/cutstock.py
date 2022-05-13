@@ -237,7 +237,7 @@ def cutstock_solve(item_table, pattern_table, fill_table, roll_width, **kwargs):
                     print('{}> pattern-generator model stops, obj={:g}'.format(loop_count, rc_cost))
                 break
 
-            use_values = gen_model.solution.get_values(gen_model.use_vars)
+            use_values = [int(round(v)) for v in gen_model.solution.get_values(gen_model.use_vars)]
             if verbose:
                 print('{}> add new pattern to master data: {}'.format(loop_count, str(use_values)))
             # make a new pattern with use values
