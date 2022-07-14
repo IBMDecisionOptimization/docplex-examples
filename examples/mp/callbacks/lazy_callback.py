@@ -117,7 +117,8 @@ def build_supply_model(fixed_costs, supply_costs, lazy=True, **kwargs):
             m.sum(supply[c, l] for c in range_clients) <= (nb_clients - 1) * used[l] for l in range_locations)
         print('* added lazy constraints callback with {0} constraints'.format(len(lazyct_cb.cts)))
 
-    m.lazy_callback = lazyct_cb
+        m.lazy_callback = lazyct_cb
+
     m.parameters.preprocessing.presolve = 0
     return m
 
@@ -157,7 +158,7 @@ if __name__ == "__main__":
         if arg == '-lazy':
             use_lazy = True
         if arg == '-nolazy':
-            use_lazy = True
+            use_lazy = False
         else:
             print('Unknown argument %s' % arg)
     random = False

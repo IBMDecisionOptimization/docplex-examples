@@ -123,7 +123,8 @@ def build_supply_model(fixed_costs, supply_costs, use_cuts=False, **kwargs):
                 cut_cb.add_cut_constraint(supply[c, l] <= location_used)
         print('* add cut constraints callback with {0} cuts'.format(len(cut_cb.cts)))
 
-    m.cut_callback = cut_cb
+        m.cut_callback = cut_cb
+
     return m
 
 
@@ -160,7 +161,7 @@ if __name__ == "__main__":
     use_cuts = True
     for arg in args[1:]:
         if arg == '-cuts':
-            use_cuts = False
+            use_cuts = True
         elif arg == '-nocuts':
             use_cuts = False
         else:
