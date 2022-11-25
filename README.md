@@ -11,7 +11,7 @@ This library is composed of 2 modules:
 * IBM&reg; Decision Optimization CPLEX Optimizer Modeling for Python - with namespace docplex.mp
 * IBM&reg; Decision Optimization CP Optimizer Modeling for Python - with namespace docplex.cp
 
-Solving with CPLEX locally requires that IBM&reg; ILOG CPLEX Optimization Studio V12.8 or later
+Solving with CPLEX requires that IBM&reg; ILOG CPLEX Optimization Studio V12.10 or later
 is installed on your machine.
 
 This library is numpy friendly.
@@ -26,7 +26,7 @@ This library is numpy friendly.
 
 * [Latest documentation](http://ibmdecisionoptimization.github.io/docplex-doc/)
 * Documentation archives:
-   * [2.23.217](http://ibmdecisionoptimization.github.io/docplex-doc/2.23.217)
+   * [2.23.222](http://ibmdecisionoptimization.github.io/docplex-doc/2.23.222)
    * [2.22.213](http://ibmdecisionoptimization.github.io/docplex-doc/2.22.213)
    * [2.21.207](http://ibmdecisionoptimization.github.io/docplex-doc/2.21.207)
    * [2.20.204](http://ibmdecisionoptimization.github.io/docplex-doc/2.20.204)
@@ -47,7 +47,6 @@ This library is numpy friendly.
 
 These third-party dependencies are automatically installed with ``pip``
 
-- [enum34](https://pypi.python.org/pypi/enum34)
 - [futures](https://pypi.python.org/pypi/futures)
 - [requests](https://pypi.python.org/pypi/requests)
 - [six](https://pypi.python.org/pypi/six)

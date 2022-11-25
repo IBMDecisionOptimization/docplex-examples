@@ -243,4 +243,5 @@ if __name__ == '__main__':
     from docplex.util.environment import get_environment
     with get_environment().get_output_stream("solution.json") as fp:
         lb_save_solution_as_json(lbm, fp)
+    lbm.end()
 

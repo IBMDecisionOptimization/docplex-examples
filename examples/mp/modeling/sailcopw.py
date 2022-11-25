@@ -36,9 +36,11 @@ inventory_cost = 20
 # Build the model
 # ----------------------------------------------------------------------------
 
+def build_default_sailcopw_model(**kwargs):
+    mdl = Model("sailcopw")
+    return build_sailcopw_model(mdl, **kwargs)
 
-def build_sailcopw_model(**kwargs):
-    mdl = Model(name="sailcopw", **kwargs)
+def build_sailcopw_model(mdl, **kwargs):
     periods0 = range(nb_periods + 1)
     periods1 = range(1, nb_periods + 1)
 
@@ -71,14 +73,15 @@ def build_sailcopw_model(**kwargs):
 # ----------------------------------------------------------------------------
 
 if __name__ == '__main__':
-    sailm = build_sailcopw_model()
-    s = sailm.solve(log_output=True)
-    if s:
-        sailm.report()
-        sailm.print_solution()
+    with Model(name="sailcopw") as sailm:
+        build_sailcopw_model(sailm)
+        s = sailm.solve(log_output=True)
+        if s:
+            sailm.report()
+            sailm.print_solution()
 
-        # Save the CPLEX solution as "solution.json" program output
-        with get_environment().get_output_stream("solution.json") as fp:
-            sailm.solution.export(fp, "json")
-    else:
-        print("Problem has no solution")
+            # Save the CPLEX solution as "solution.json" program output
+            with get_environment().get_output_stream("solution.json") as fp:
+                sailm.solution.export(fp, "json")
+        else:
+            print("Problem has no solution")

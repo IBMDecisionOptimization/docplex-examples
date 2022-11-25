@@ -56,7 +56,7 @@ def populate_from_model(mdl,
     :param eps_diff: precision to use for testing variable difference
     :param verbose: optional flag to print results.
 
-    :return: the solution pool as returned by `docplex.mp.Model.populate()`
+    :return: the model and the solution pool as returned by `docplex.mp.Model.populate()`
     """
     print(f"* running populate on model: '{mdl.name}', gap={gap}, intensity={pool_intensity}, capacity={pool_capacity}")
     # set the solution pool relative gap parameter to obtain solutions
@@ -113,7 +113,7 @@ def populate_from_model(mdl,
                 numdiff += 1
         print("%-15s %-10g      %02d / %d" %
               (s, objval_i, numdiff, numcols))
-    return solnpool
+    return mdl, solnpool
 
 
 if __name__ == "__main__":
@@ -124,7 +124,8 @@ if __name__ == "__main__":
         filename = join(dirname(abspath(__file__)), "sports.lp")
     else:
         filename = sys.argv[1]
-    populate_from_file(filename)
+    mdl, sol_pool = populate_from_file(filename)
+    mdl.end()
 
 
 # * building sport scheduling model instance

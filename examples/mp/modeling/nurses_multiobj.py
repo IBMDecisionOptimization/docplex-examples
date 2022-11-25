@@ -529,6 +529,8 @@ if __name__ == '__main__':
     with get_environment().get_output_stream("solution.json") as fp:
         model.solution.export(fp, "json")
 
+    model.end()
+
     model = build()
     paramsets = model.build_multiobj_paramsets(timelimits=[70,60,50] , mipgaps=[0.000003, 0.000002, 0.000001])
     solve(model, clean_before_solve=True, parameter_sets=paramsets)
@@ -543,3 +545,4 @@ if __name__ == '__main__':
         p.add(cplex.parameters.threads, 2+i)
     solve(model, clean_before_solve=True, parameter_sets=paramsets)
     print(model.solve_details)
+    model.end()

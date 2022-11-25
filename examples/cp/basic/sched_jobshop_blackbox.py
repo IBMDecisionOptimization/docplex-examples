@@ -92,11 +92,20 @@ RANDOM_SEED = 1234
 import sys
 try:
     import numpy as np
+except ImportError:
+    print("Please ensure you have installed module 'numpy'.")
+    sys.exit(0)
+
+try:
     import functools
+except ImportError:
+    print("Please ensure you have installed module 'functools'.")
+    sys.exit(0)
+
+try:
     import numba
 except ImportError:
-    print("Please ensure you have installed modules 'numpy', 'functools' and 'numba'.")
-    sys.exit(0)
+    print("Please ensure you have installed module 'numba'.")
 
 from docplex.cp.utils import compare_natural
 import docplex.cp.solver.solver as solver

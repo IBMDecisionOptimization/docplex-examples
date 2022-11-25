@@ -83,4 +83,5 @@ if __name__ == "__main__":
     s10 = love.solve(log_output=False)
     assert s10 is not None
     love.report()
+    love.end()
 

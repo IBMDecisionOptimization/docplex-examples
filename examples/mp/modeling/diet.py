@@ -12,7 +12,6 @@ from collections import namedtuple
 
 from docplex.mp.model import Model
 from docplex.util.environment import get_environment
-
 # ----------------------------------------------------------------------------
 # Initialize the problem data
 # ----------------------------------------------------------------------------
@@ -59,7 +58,8 @@ Nutrient = namedtuple("Nutrient", ["name", "qmin", "qmax"])
 # Build the model
 # ----------------------------------------------------------------------------
 
-def build_diet_model(name='diet', **kwargs):
+
+def build_diet_model(mdl, **kwargs):
     ints = kwargs.pop('ints', False)
 
     # Create tuples with named fields for foods and nutrients
@@ -68,9 +68,6 @@ def build_diet_model(name='diet', **kwargs):
 
     food_nutrients = {(fn[0], nutrients[n].name):
                           fn[1 + n] for fn in FOOD_NUTRIENTS for n in range(len(NUTRIENTS))}
-
-    # Model
-    mdl = Model(name=name, **kwargs)
 
     # Decision variables, limited to be >= Food.qmin and <= Food.qmax
     ftype = mdl.integer_vartype if ints else mdl.continuous_vartype
@@ -103,19 +100,20 @@ def build_diet_model(name='diet', **kwargs):
 # ----------------------------------------------------------------------------
 
 if __name__ == '__main__':
-    mdl = build_diet_model(ints=True, log_output=True, float_precision=6)
-    mdl.print_information()
+    with Model(name="diet", log_output=True, float_precision=6) as mdl:
+        build_diet_model(mdl, ints=True)
+        mdl.print_information()
 
-    s = mdl.solve()
-    if s:
-        qty_vars = mdl.find_matching_vars(pattern="q_")
-        for fv in qty_vars:
-            food_name = fv.name[2:]
-            print("Buy {0:<25} = {1:9.6g}".format(food_name, fv.solution_value))
+        s = mdl.solve()
+        if s:
+            qty_vars = mdl.find_matching_vars(pattern="q_")
+            for fv in qty_vars:
+                food_name = fv.name[2:]
+                print("Buy {0:<25} = {1:9.6g}".format(food_name, fv.solution_value))
 
-        mdl.report_kpis()
-        # Save the CPLEX solution as "solution.json" program output
-        with get_environment().get_output_stream("solution.json") as fp:
-            mdl.solution.export(fp, "json")
-    else:
-        print("* model has no solution")
+            mdl.report_kpis()
+            # Save the CPLEX solution as "solution.json" program output
+            with get_environment().get_output_stream("solution.json") as fp:
+                mdl.solution.export(fp, "json")
+        else:
+            print("* model has no solution")
