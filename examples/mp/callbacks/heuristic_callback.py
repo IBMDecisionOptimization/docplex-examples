@@ -55,7 +55,8 @@ def try_heuristic_cb_on_file(filename):
     from docplex.mp.model_reader import ModelReader
     mdl = ModelReader.read(filename)
     if mdl:
-        return try_heuristic_cb_on_model(mdl)
+        return mdl, try_heuristic_cb_on_model(mdl)
+
 
 
 if __name__ == "__main__":
@@ -71,6 +72,7 @@ if __name__ == "__main__":
         print("             extension, and a possible, additional .gz")
         print("             extension")
         sys.exit(-1)
-    s = try_heuristic_cb_on_file(data_file)
+    mdl, s = try_heuristic_cb_on_file(data_file)
     if expected:
         assert abs(s.objective_value - expected) <= 1
+    mdl.end()

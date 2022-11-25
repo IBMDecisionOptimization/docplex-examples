@@ -528,3 +528,4 @@ if __name__ == '__main__':
     # Save the CPLEX solution as "solution.json" program output
     with get_environment().get_output_stream("solution.json") as fp:
         model.solution.export(fp, "json")
+    model.end()

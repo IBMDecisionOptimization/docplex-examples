@@ -1,7 +1,7 @@
 # --------------------------------------------------------------------------
 # Source file provided under Apache License, Version 2.0, January 2004,
 # http://www.apache.org/licenses/
-# (c) Copyright IBM Corp. 2015, 2016
+# (c) Copyright IBM Corp. 2015, 2022
 # --------------------------------------------------------------------------
 
 from collections import namedtuple
@@ -246,15 +246,18 @@ def cutstock_solve(item_table, pattern_table, fill_table, roll_width, **kwargs):
                 break
             add_pattern_to_master_model(master_model, use_values)
 
+    ret = None
     if ms:
         if verbose:
             print('\n* Cutting-stock column generation terminates, best={:g}, #loops={}'.format(curr, loop_count))
             cutstock_print_solution(master_model)
-        return ms
+        ret = ms
     else:
         print("!!!!  Cutting-stock column generation fails  !!!!")
-        return None
+        ret = None
+    gen_model.end()
 
+    return (master_model, ret)
 
 def cutstock_solve_default(**kwargs):
     return cutstock_solve(DEFAULT_ITEMS, DEFAULT_PATTERNS, DEFAULT_PATTERN_ITEM_FILLED, DEFAULT_ROLL_WIDTH,
@@ -265,8 +268,9 @@ def cutstock_solve_default(**kwargs):
 # Solve the model and display the result
 # -----------------------------------------------------------------------------
 if __name__ == '__main__':
-    s = cutstock_solve_default()
+    m,s = cutstock_solve_default()
     assert abs(s.objective_value - 46.25) <= 0.1
     # Save the solution as "solution.json" program output.
     with get_environment().get_output_stream("solution.json") as fp:
-        cutstock_save_as_json(s.model, fp)
+        cutstock_save_as_json(m, fp)
+    m.end()

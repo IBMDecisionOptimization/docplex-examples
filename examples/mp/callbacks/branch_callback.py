@@ -202,5 +202,6 @@ def lifegame_make_initial_solution(mdl):
 if __name__ == "__main__":
     life_m = build_lifegame_model(n=6)
     add_branch_callback(life_m, logged=False)
+    life_m.end()
 
 

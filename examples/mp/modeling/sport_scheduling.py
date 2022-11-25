@@ -137,3 +137,4 @@ if __name__ == '__main__':
             model.solution.export(fp, "json")
     else:
         print("Problem could not be solved: " + model.solve_details.get_status())
+    model.end()

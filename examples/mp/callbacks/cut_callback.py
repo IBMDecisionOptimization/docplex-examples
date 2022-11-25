@@ -149,10 +149,8 @@ DEFAULT_SUPPLY_COSTS = [[24, 74, 31, 51, 84],
                         [54, 72, 41, 12, 78],
                         [54, 64, 65, 89, 89]]
 
-
 def build_test_supply_model(use_cuts, **kwargs):
     return build_supply_model(DEFAULT_FIXED_COSTS, DEFAULT_SUPPLY_COSTS, use_cuts=use_cuts, **kwargs)
-
 
 if __name__ == "__main__":
     # parse args
@@ -188,3 +186,4 @@ if __name__ == "__main__":
     # expected value is 843, regardless of cuts
     if not random:
         assert abs(m.objective_value - 843) <= 1e-4
+    m.end()

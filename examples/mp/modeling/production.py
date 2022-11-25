@@ -46,14 +46,13 @@ CONSUMPTIONS = {("kluski", "flour"): 0.5,
 # ----------------------------------------------------------------------------
 # Build the model
 # ----------------------------------------------------------------------------
-def build_production_problem(products, resources, consumptions, **kwargs):
+def build_production_problem(mdl, products, resources, consumptions, **kwargs):
     """ Takes as input:
         - a list of product tuples (name, demand, inside, outside)
         - a list of resource tuples (name, capacity)
         - a list of consumption tuples (product_name, resource_named, consumed)
     """
-    mdl = Model(name='production', **kwargs)
-    # --- decision variables ---
+      # --- decision variables ---
     mdl.inside_vars  = mdl.continuous_var_dict(products, name=lambda p: 'inside_%s' % p[0])
     mdl.outside_vars = mdl.continuous_var_dict(products, name=lambda p: 'outside_%s' % p[0])
 
@@ -86,23 +85,23 @@ def print_production_solution(mdl, products):
         print("Outside production of {product}: {out_var}".format
               (product=p[0], out_var=mdl.outside_vars[p].solution_value))
 
-
 def build_default_production_problem(**kwargs):
-    return build_production_problem(PRODUCTS, RESOURCES, CONSUMPTIONS, **kwargs)
-
+    mdl = Model( **kwargs)
+    return build_production_problem(mdl, PRODUCTS, RESOURCES, CONSUMPTIONS)
 # ----------------------------------------------------------------------------
 # Solve the model and display the result
 # ----------------------------------------------------------------------------
 if __name__ == '__main__':
     # Build the model
-    model = build_production_problem(PRODUCTS, RESOURCES, CONSUMPTIONS)
-    model.print_information()
-    # Solve the model.
-    if model.solve():
-        print_production_solution(model, PRODUCTS)
-        # Save the CPLEX solution as "solution.json" program output
-        with get_environment().get_output_stream("solution.json") as fp:
-            model.solution.export(fp, "json")
-    else:
-        print("Problem has no solution")
+    with Model(name='production') as model:
+        model = build_production_problem(model, PRODUCTS, RESOURCES, CONSUMPTIONS)
+        model.print_information()
+        # Solve the model.
+        if model.solve():
+            print_production_solution(model, PRODUCTS)
+            # Save the CPLEX solution as "solution.json" program output
+            with get_environment().get_output_stream("solution.json") as fp:
+                model.solution.export(fp, "json")
+        else:
+            print("Problem has no solution")
 
