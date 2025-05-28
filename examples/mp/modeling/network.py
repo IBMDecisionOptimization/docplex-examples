@@ -29,7 +29,7 @@ Objective"
 
 To run this example from the command line, use
 
-    python network.py
+    python network.py 8 2
 """
 import numpy as np
 from numpy.random import default_rng
@@ -98,7 +98,8 @@ def network(N,Flowij, max_capacity, fixed_cost, var_cost):
                                     name='flow_ij_ab')
 
     # Continuous decision variable dictionary to determine the load in link a-b.
-    load_ab = mdl.continuous_var_dict([(a, b) for a in nodes for b in nodes if a != b],name='load_ab')
+    load_ab = mdl.continuous_var_dict([(a, b) for a in nodes for b in nodes if a != b],name='load_ab', lb=1e-4)
+
 
     # Decision variable to determine which links should have a physical connection.
     link_ab = mdl.binary_var_dict([(a, b) for a in nodes for b in nodes if a != b],name='link_ab')
@@ -130,23 +131,13 @@ def network(N,Flowij, max_capacity, fixed_cost, var_cost):
                         outflow = mdl.sum(flow_ij_ab[i, j, k, b] for b in nodes if k != b)
                         if k!=i and k!=j:
                             mdl.add(inflow - outflow == 0)
-    for i in nodes:
-        for j in nodes:
-            if i!=j:
-                for a in nodes:
-                    for b in nodes:
-                        if a!=b:
-                            mdl.add(mdl.if_then(flow_ij_ab[(i,j,a,b)]==1, link_ab[(a,b)]==1))
+                mdl.add(flow_ij_ab[(i,j,a,b)]<= link_ab[(a,b)] for a in nodes for b in nodes if a!=b)
+                mdl.add(load_ab[(i,j)] == mdl.max(
+                    mdl.sum(flow_ij_ab[(a,b,i,j)]*Flowij[(a,b)] for a in nodes for b in nodes if a!=b and Flowij[(a,b)]),
+                    mdl.sum(flow_ij_ab[(a,b,j,i)]*Flowij[(a,b)] for a in nodes for b in nodes if a!=b and Flowij[(a,b)])
 
-    # Maximum capacity constraint
-    for a in nodes:
-        for b in nodes:
-            if a!=b:
-                load_ab[(a,b)] = mdl.max(
-                    mdl.sum(flow_ij_ab[(i,j,a,b)]*Flowij[(i,j)] for i in nodes for j in nodes if i!=j and Flowij[(i,j)]),
-                    mdl.sum(flow_ij_ab[(i,j,b,a)]*Flowij[(i,j)] for i in nodes for j in nodes if i!=j and Flowij[(i,j)])
-                )
-    mdl.add(load_ab[(i,j)] <= max_capacity[(i,j)] * link_ab[i,j] for i in nodes for j in nodes if i!=j)
+                ))
+                mdl.add(load_ab[(i,j)] <= max_capacity[(i,j)] * link_ab[i,j])    # Maximum capacity constraint
     return mdl, flow_ij_ab, load_ab
 
 #-----------------------------------------------------------------------------
@@ -155,11 +146,11 @@ def network(N,Flowij, max_capacity, fixed_cost, var_cost):
 def display_results(mdl,flow_ij_ab,load_ab):
 
     print("\nSolving model....")
-    solution = mdl.solve()
+    solution = mdl.solve(log_output=True)
     solution.objective_value
     # solution.display()
     solution.solve_details
-    mdl.solve_details.time
+    print(mdl.solve_details)
     if solution:
         print('\nSolution Found: \n')
         for i in nodes:
